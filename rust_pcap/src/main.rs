@@ -14,7 +14,8 @@ pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
 }
 
 fn main() {
-    let file = File::open("2022-01-07-traffic-analysis-exercise.pcap").unwrap();
+    let args: Vec<String> = std::env::args().collect();
+    let file = File::open(args.get(1).unwrap()).unwrap();
     let mut num_blocks = 0;
     let mut ip_count = 0;
     let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
