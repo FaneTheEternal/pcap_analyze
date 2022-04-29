@@ -14,7 +14,7 @@ pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
 }
 
 pub fn default<T: Default>() -> T {
-    T::default()
+    Default::default()
 }
 
 #[macro_export]
@@ -42,7 +42,8 @@ pub trait Layer {
     }
 }
 
-pub type Layers = HashMap<String, Box<dyn Layer>>;
+#[derive(Default, derive_more::Deref, derive_more::DerefMut)]
+pub struct Layers(HashMap<String, Box<dyn Layer>>);
 
 pub trait HasLayers {
     fn layers(&self) -> &Layers;
