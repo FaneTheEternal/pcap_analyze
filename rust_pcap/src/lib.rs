@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::ptr::NonNull;
+
 mod frame;
 mod ethernet;
 mod ip;
@@ -20,8 +23,16 @@ macro_rules! get_array {
         $source.get($slice).unwrap().try_into().unwrap()
     }
 }
-use std::collections::HashMap;
-use std::ptr::NonNull;
+
+#[macro_export]
+macro_rules! get_layer_descendants {
+    ($self:expr, $target:ident, $($type:ident),+ $(,)?) => {
+        None
+        $(
+        .or_else(|| { $self.get_layer::<$type>().and_then(|l| { l.get_layer::<$target>() }) })
+        )+
+    }
+}
 
 pub trait Layer {
     // TODO: Derive {name}

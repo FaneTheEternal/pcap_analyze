@@ -25,6 +25,6 @@ impl HasLayers for Frame {
         &self.layers
     }
     fn get_layer_descendants<T>(&self) -> Option<&T> where T: Layer {
-        self.get_layer::<Ethernet>().and_then(|eth| { eth.get_layer::<T>() })
+        get_layer_descendants!(self, T, Ethernet)
     }
 }
