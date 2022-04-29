@@ -1,56 +1,32 @@
+use std::fmt::{Formatter, write};
 use byteorder::{ByteOrder, NetworkEndian};
-use crate::split;
+use crate::*;
 
-pub struct IP<'frame> {
-    version: u8,
-    ip: IPTypes<'frame>,
-}
-
-impl<'frame> IP<'frame> {
-    pub fn try_extract(data: &'frame [u8]) -> Option<(IP<'frame>, &'frame [u8])> {
-        let first = data.get(0).unwrap().clone();
-        let version = first >> 4;
-        match version {
-            4 => {
-                let (ip, data) = IPv4::from_raw(data);
-                let ip = IP { version, ip: IPTypes::V4(ip) };
-                Some((ip, data))
-            }
-            6 => { todo!() }
-            _ => unreachable!()
-        }
-    }
-}
-
-pub enum IPTypes<'frame> {
-    V4(IPv4<'frame>),
-    // TODO: v6
-}
-
-pub struct IPv4<'frame> {
+pub struct IPv4 {
     // offset: 0
-    ihl: u8,
-    dscp: u8,
-    ecn: u8,
-    size: u16,
+    pub ihl: u8,
+    pub dscp: u8,
+    pub ecn: u8,
+    pub size: u16,
     // offset: 4
-    id: u16,
-    flags: (bool, bool, bool),
-    fragments_offset: u16,
+    pub id: u16,
+    pub flags: (bool, bool, bool),
+    pub fragments_offset: u16,
     // offset: 8
-    ttl: u8,
-    protocol: u8,
-    checksum: u16,
+    pub ttl: u8,
+    pub protocol: u8,
+    pub checksum: u16,
     // offset: 12
-    src: &'frame [u8; 4],
+    pub src: [u8; 4],
     // offset: 16
-    dst: &'frame [u8; 4],
+    pub dst: [u8; 4],
     // optional offset: 20
-    opt: Option<&'frame [u8; 4]>,
+    pub opt: Option<[u8; 4]>,
+    layers: Layers,
 }
 
-impl<'frame> IPv4<'frame> {
-    fn from_raw(data: &'frame [u8]) -> (IPv4, &'frame [u8]) {
+impl IPv4 {
+    pub fn new(data: &[u8]) -> IPv4 {
         let ihl = data.get(0).unwrap().clone();
         let ihl = ihl & 0x0F;
         let dscp = data.get(1).unwrap().clone();
@@ -77,7 +53,8 @@ impl<'frame> IPv4<'frame> {
         } else {
             (None, data)
         };
-        let ip = IPv4 {
+        let mut layers = Layers::default();
+        IPv4 {
             ihl,
             dscp,
             ecn,
@@ -91,7 +68,19 @@ impl<'frame> IPv4<'frame> {
             src: src.try_into().unwrap(),
             dst: dst.try_into().unwrap(),
             opt,
-        };
-        (ip, data)
+            layers,
+        }
+    }
+}
+
+impl Layer for IPv4 {
+    fn name() -> &'static str where Self: Sized {
+        "IPv4"
+    }
+}
+
+impl HasLayers for IPv4 {
+    fn layers(&self) -> &Layers {
+        &self.layers
     }
 }

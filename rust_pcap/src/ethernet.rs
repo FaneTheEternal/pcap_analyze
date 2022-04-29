@@ -1,14 +1,16 @@
 use std::fmt::Formatter;
-use crate::split;
+use std::ptr::NonNull;
+use crate::*;
 
-pub struct Ethernet<'frame> {
-    src: &'frame [u8; 6],
-    dst: &'frame [u8; 6],
-    eth_type: &'frame [u8; 2],
-    crc: &'frame [u8; 4],
+pub struct Ethernet {
+    src: [u8; 6],
+    dst: [u8; 6],
+    eth_type: [u8; 2],
+    crc: [u8; 4],
+    layers: Layers,
 }
 
-impl std::fmt::Debug for Ethernet<'_> {
+impl std::fmt::Debug for Ethernet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let src = self.src.map(|b| format!("{:X}", b)).join(":");
         let dst = self.dst.map(|b| format!("{:X}", b)).join(":");
@@ -17,22 +19,38 @@ impl std::fmt::Debug for Ethernet<'_> {
     }
 }
 
-impl<'frame> Ethernet<'frame> {
-    pub fn has_ipv4(&self) -> bool {
-        self.eth_type.eq(&[0x08, 0x00])
-    }
+impl Ethernet {
+    const IP4: [u8; 2] = [0x08, 0x00];
+    const IP6: [u8; 2] = [0x86, 0xDD];
 
-    pub fn from_raw(data: &'frame [u8]) -> (Ethernet<'frame>, &'frame [u8]) {
-        let (src, data) = split(data, 6);
-        let (dst, data) = split(data, 6);
-        let (eth_type, data) = split(data, 2);
-        let (data, crc) = split(data, data.len() - 4);
-        let ethernet = Ethernet {
-            src: src.try_into().unwrap(),
-            dst: dst.try_into().unwrap(),
-            eth_type: eth_type.try_into().unwrap(),
-            crc: crc.try_into().unwrap(),
-        };
-        (ethernet, data)
+    pub fn new(data: &[u8]) -> Ethernet {
+        let mut layers = Layers::default();
+        let eth_type = get_array!(data, 12..14);
+        match eth_type {
+            Self::IP4 => {
+                let ip = IPv4::new(data.get(14..(data.len() - 4)).unwrap());
+                layers.insert(IPv4::name().to_string(), Box::new(ip));
+            }
+            _ => {}
+        }
+        Ethernet {
+            src: get_array!(data, 0..6),
+            dst: get_array!(data, 6..12),
+            eth_type,
+            crc: get_array!(data, (data.len() - 4)..),
+            layers,
+        }
+    }
+}
+
+impl Layer for Ethernet {
+    fn name() -> &'static str where Self: Sized {
+        "Ethernet"
+    }
+}
+
+impl HasLayers for Ethernet {
+    fn layers(&self) -> &Layers {
+        &self.layers
     }
 }

@@ -1,17 +1,7 @@
-mod ethernet;
-mod ip;
-
 use pcap_parser::*;
 use pcap_parser::traits::PcapReaderIterator;
 use std::fs::File;
-use pcap_parser::data::{get_packetdata, PacketData};
-use crate::ethernet::Ethernet;
-use crate::ip::IP;
-
-
-pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
-    (data.get(..i).unwrap(), data.get(i..).unwrap())
-}
+use rust_pcap::{Ethernet, Frame, GetLayers, IPv4};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -28,12 +18,11 @@ fn main() {
                         println!("{hdr:?}")
                     }
                     PcapBlockOwned::Legacy(b) => {
-                        let (e, data) = Ethernet::from_raw(b.data);
-                        if e.has_ipv4() {
-                            let (ip, data) = IP::try_extract(data).unwrap();
+                        let frame = Frame::new(b.data);
+                        // let eth = frame.get_layer::<Ethernet>().unwrap();
+                        if let Some(ip) = frame.get_layer::<IPv4>() {
                             ip_count += 1;
                         }
-                        // break;
                     }
                     PcapBlockOwned::NG(_) => unreachable!(),
                 }
