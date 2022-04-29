@@ -61,7 +61,3 @@ pub fn get_layer<O, T>(origin: &O) -> Option<&T>
     None
 }
 
-pub trait CheckDescendants {
-    fn get_layer<T>(&self) -> Option<&T> where T: Layer;
-}
-
