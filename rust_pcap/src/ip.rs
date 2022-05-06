@@ -1,4 +1,3 @@
-use std::fmt::{Formatter, write};
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
 use crate::icmp::ICMP;

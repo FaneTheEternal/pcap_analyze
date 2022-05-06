@@ -20,7 +20,7 @@ impl HasLayers for UDP {
 
 impl UDP {
     pub fn new(data: &[u8]) -> UDP {
-        let mut layers = Layers::default();
+        let layers = Layers::default();
         UDP {
             src: NetworkEndian::read_u16(data.get(..2).unwrap()),
             dst: NetworkEndian::read_u16(data.get(2..4).unwrap()),

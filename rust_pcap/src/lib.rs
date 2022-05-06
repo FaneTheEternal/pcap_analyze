@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::ptr::NonNull;
