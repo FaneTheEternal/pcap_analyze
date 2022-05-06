@@ -1,6 +1,7 @@
 use crate::*;
 use crate::ethernet::Ethernet;
 
+#[derive(Layer)]
 pub struct Frame {
     layers: Layers,
 }
@@ -11,12 +12,6 @@ impl Frame {
         let eth = Ethernet::new(data);
         layers.insert(Ethernet::name().to_string(), Box::new(eth));
         Frame { layers }
-    }
-}
-
-impl Layer for Frame {
-    fn name() -> &'static str where Self: Sized {
-        "Frame"
     }
 }
 

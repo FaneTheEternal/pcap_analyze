@@ -2,6 +2,13 @@ use std::fmt::{Formatter, write};
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
 
+#[derive(Layer)]
+pub struct IPFlags {
+    null: bool,
+    df: bool,
+    mf: bool,
+}
+
 pub struct IPv4 {
     // offset: 0
     pub ihl: u8,
@@ -10,7 +17,7 @@ pub struct IPv4 {
     pub size: u16,
     // offset: 4
     pub id: u16,
-    pub flags: (bool, bool, bool),
+    pub flags: IPFlags,
     pub fragments_offset: u16,
     // offset: 8
     pub ttl: u8,
@@ -35,11 +42,11 @@ impl IPv4 {
         let size = NetworkEndian::read_u16(data.get(2..4).unwrap());
         let id = NetworkEndian::read_u16(data.get(4..6).unwrap());
         let fragments_offset = NetworkEndian::read_u16(data.get(6..8).unwrap());
-        let flags = (
-            fragments_offset & 0b100_00000 > 0,
-            fragments_offset & 0b010_00000 > 0,
-            fragments_offset & 0b001_00000 > 0
-        );
+        let flags = IPFlags {
+            null: fragments_offset & 0b100_00000 > 0,
+            df: fragments_offset & 0b010_00000 > 0,
+            mf: fragments_offset & 0b001_00000 > 0,
+        };
         let fragments_offset = fragments_offset & 0b000_11111;
         let ttl = data.get(8).unwrap().clone();
         let protocol = data.get(9).unwrap().clone();
@@ -73,14 +80,47 @@ impl IPv4 {
     }
 }
 
-impl Layer for IPv4 {
-    fn name() -> &'static str where Self: Sized {
-        "IPv4"
-    }
-}
-
 impl HasLayers for IPv4 {
     fn layers(&self) -> &Layers {
         &self.layers
+    }
+}
+
+
+#[derive(Layer)]
+pub struct IPv6 {
+    // offset 0
+    qos: u8,
+    label: u32,
+    // offset 4
+    len: u16,
+    header: u8,
+    hops: u8,
+    // offset 8
+    src: [u8; 16],
+    // offset 24
+    dst: [u8; 16],
+}
+
+impl IPv6 {
+    pub fn new(data: &[u8]) -> IPv6 {
+        let qos = NetworkEndian::read_u16(data.get(0..2).unwrap());
+        let qos = (qos << 4) as u8;
+        let label = NetworkEndian::read_u32(data.get(..4).unwrap());
+        let label = label << 12;
+        let len = NetworkEndian::read_u16(data.get(4..6).unwrap());
+        let header = data.get(6).unwrap().clone();
+        let hops = data.get(7).unwrap().clone();
+        let src = get_array!(data, 8..24);
+        let dst = get_array!(data, 24..40);
+        IPv6 {
+            qos,
+            label,
+            len,
+            header,
+            hops,
+            src,
+            dst,
+        }
     }
 }

@@ -3,6 +3,9 @@ name = "rust_pcap"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["crates/*"]
+
 [[bin]]
 name = "get_stats"
 
@@ -10,3 +13,4 @@ name = "get_stats"
 pcap-parser = { version = "0.13.3", features = ["data"] }
 byteorder = "1.4.3"
 derive_more = "0.99.17"
+analyze_derive = { path = "crates/analyze_derive" }

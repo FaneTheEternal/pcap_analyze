@@ -2,6 +2,7 @@ use std::fmt::Formatter;
 use std::ptr::NonNull;
 use crate::*;
 
+#[derive(Layer)]
 pub struct Ethernet {
     src: [u8; 6],
     dst: [u8; 6],
@@ -40,12 +41,6 @@ impl Ethernet {
             crc: get_array!(data, (data.len() - 4)..),
             layers,
         }
-    }
-}
-
-impl Layer for Ethernet {
-    fn name() -> &'static str where Self: Sized {
-        "Ethernet"
     }
 }
 

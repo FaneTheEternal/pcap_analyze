@@ -8,6 +8,7 @@ mod ip;
 pub use frame::*;
 pub use ethernet::*;
 pub use ip::*;
+pub use analyze_derive::*;
 
 pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
     (data.get(..i).unwrap(), data.get(i..).unwrap())
