@@ -29,8 +29,7 @@ impl Ethernet {
         let eth_type = get_array!(data, 12..14);
         match eth_type {
             Self::IP4 => {
-                let ip = IPv4::new(data.get(14..(data.len() - 4)).unwrap());
-                layers.insert(IPv4::name().to_string(), Box::new(ip));
+                layers.insert(IPv4::new(data.get(14..(data.len() - 4)).unwrap()));
             }
             _ => {}
         }
@@ -47,5 +46,8 @@ impl Ethernet {
 impl HasLayers for Ethernet {
     fn layers(&self) -> &Layers {
         &self.layers
+    }
+    fn get_layer_descendants<T>(&self) -> Option<&T> where T: Layer {
+        get_layer_descendants!(self, T, IPv4)
     }
 }

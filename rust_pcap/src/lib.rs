@@ -1,13 +1,19 @@
 use std::collections::HashMap;
+use std::fmt::Formatter;
 use std::ptr::NonNull;
 
 mod frame;
 mod ethernet;
 mod ip;
+mod udp;
+mod icmp;
 
 pub use frame::*;
 pub use ethernet::*;
 pub use ip::*;
+pub use udp::*;
+pub use icmp::*;
+
 pub use analyze_derive::*;
 
 pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
@@ -30,13 +36,12 @@ macro_rules! get_layer_descendants {
     ($self:expr, $target:ident, $($type:ident),+ $(,)?) => {
         None
         $(
-        .or_else(|| { $self.get_layer::<$type>().and_then(|l| { l.get_layer::<$target>() }) })
+        .or_else(|| get_layer::<_, $type>($self).and_then(|l| { l.get_layer::<$target>() }))
         )+
     }
 }
 
 pub trait Layer {
-    // TODO: Derive {name}
     fn name() -> &'static str where Self: Sized;
     fn as_ptr(&self) -> NonNull<usize> {
         NonNull::from(self).cast::<usize>()
@@ -45,6 +50,18 @@ pub trait Layer {
 
 #[derive(Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct Layers(HashMap<String, Box<dyn Layer>>);
+
+impl Layers {
+    pub fn insert<T: Layer + 'static>(&mut self, layer: T) {
+        self.0.insert(T::name().to_string(), Box::new(layer));
+    }
+}
+
+impl std::fmt::Debug for Layers {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0.iter().map(|(e, _)| e.clone()).collect::<Vec<String>>())
+    }
+}
 
 pub trait HasLayers {
     fn layers(&self) -> &Layers;

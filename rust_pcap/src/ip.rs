@@ -1,6 +1,7 @@
 use std::fmt::{Formatter, write};
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
+use crate::icmp::ICMP;
 
 #[derive(Layer)]
 pub struct IPFlags {
@@ -9,6 +10,7 @@ pub struct IPFlags {
     mf: bool,
 }
 
+#[derive(Layer)]
 pub struct IPv4 {
     // offset: 0
     pub ihl: u8,
@@ -61,6 +63,15 @@ impl IPv4 {
             (None, data)
         };
         let mut layers = Layers::default();
+        match protocol {
+            1 => {
+                layers.insert(ICMP::new(data));
+            }
+            17 => {
+                layers.insert(UDP::new(data));
+            }
+            _ => {}
+        }
         IPv4 {
             ihl,
             dscp,
@@ -83,6 +94,9 @@ impl IPv4 {
 impl HasLayers for IPv4 {
     fn layers(&self) -> &Layers {
         &self.layers
+    }
+    fn get_layer_descendants<T>(&self) -> Option<&T> where T: Layer {
+        get_layer_descendants!(self, T, UDP)
     }
 }
 

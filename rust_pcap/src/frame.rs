@@ -9,8 +9,7 @@ pub struct Frame {
 impl Frame {
     pub fn new(data: &[u8]) -> Frame {
         let mut layers = Layers::default();
-        let eth = Ethernet::new(data);
-        layers.insert(Ethernet::name().to_string(), Box::new(eth));
+        layers.insert(Ethernet::new(data));
         Frame { layers }
     }
 }
