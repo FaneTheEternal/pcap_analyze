@@ -8,6 +8,7 @@ fn main() {
     let file = File::open(args.get(1).unwrap()).unwrap();
     let mut num_blocks = 0;
     let mut ip_count = 0;
+    let mut tcp_count = 0;
     let mut udp_count = 0;
     let mut icmp_count = 0;
     let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
@@ -28,6 +29,9 @@ fn main() {
                         if let Some(_) = frame.get_layer::<UDP>() {
                             udp_count += 1;
                         }
+                        if let Some(_) = frame.get_layer::<TCP>() {
+                            tcp_count += 1;
+                        }
                         if let Some(_) = frame.get_layer::<ICMP>() {
                             icmp_count += 1;
                         }
@@ -46,6 +50,7 @@ fn main() {
     }
     dbg!(num_blocks);
     dbg!(ip_count);
+    dbg!(tcp_count);
     dbg!(udp_count);
     dbg!(icmp_count);
 }

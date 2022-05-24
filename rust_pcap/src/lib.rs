@@ -9,12 +9,14 @@ mod ethernet;
 mod ip;
 mod udp;
 mod icmp;
+mod tcp;
 
 pub use frame::*;
 pub use ethernet::*;
 pub use ip::*;
 pub use udp::*;
 pub use icmp::*;
+pub use tcp::*;
 
 pub use analyze_derive::*;
 

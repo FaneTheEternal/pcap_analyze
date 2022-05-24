@@ -28,7 +28,7 @@ impl Ethernet {
         let eth_type = get_array!(data, 12..14);
         match eth_type {
             Self::IP4 => {
-                layers.insert(IPv4::new(data.get(14..(data.len() - 4)).unwrap()));
+                layers.insert(IPv4::new(data.get(14..).unwrap()));
             }
             _ => {}
         }

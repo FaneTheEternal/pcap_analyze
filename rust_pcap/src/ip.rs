@@ -66,6 +66,9 @@ impl IPv4 {
             1 => {
                 layers.insert(ICMP::new(data));
             }
+            6 => {
+                layers.insert(TCP::new(data));
+            }
             17 => {
                 layers.insert(UDP::new(data));
             }
