@@ -43,6 +43,7 @@ pub enum ICMPData {
     ResTime(ReqTime),
     OutDate,
     Photuris(Photuris),
+    Experimental,
     Unknown,
 }
 
@@ -106,6 +107,18 @@ pub struct ReqTime {
     send_time: u32,
 }
 
+impl ReqTime {
+    pub fn from(data: &[u8]) -> ReqTime {
+        ReqTime {
+            id: NetworkEndian::read_u16(data.get(..2).unwrap()),
+            num: NetworkEndian::read_u16(data.get(2..4).unwrap()),
+            begin_time: NetworkEndian::read_u32(data.get(4..8).unwrap()),
+            recv_time: NetworkEndian::read_u32(data.get(8..12).unwrap()),
+            send_time: NetworkEndian::read_u32(data.get(12..16).unwrap()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Photuris {
     Reserved,
@@ -121,18 +134,14 @@ impl ICMP {
         let kind = data.get(0).unwrap().clone();
         let code = data.get(1).unwrap().clone();
         let checksum = NetworkEndian::read_u16(data.get(2..4).unwrap());
-        let data = match (kind, code) {
-            (0 | 8, _) => {
-                ICMPData::Echo {
-                    id: NetworkEndian::read_u16(data.get(4..6).unwrap()),
-                    num: NetworkEndian::read_u16(data.get(6..8).unwrap()),
-                    data: data.get(8..).unwrap().to_vec(),
-                }
-            }
-            (1 | 2 | 7, _) => {
-                ICMPData::Reserved
-            }
-            (3, code) => {
+        let data = match kind {
+            0 | 8 => ICMPData::Echo {
+                id: NetworkEndian::read_u16(data.get(4..6).unwrap()),
+                num: NetworkEndian::read_u16(data.get(6..8).unwrap()),
+                data: data.get(8..).unwrap().to_vec(),
+            },
+            1 | 2 | 7 | 19 | 20..=29 | 42..=252 | 255 => ICMPData::Reserved,
+            3 => {
                 let not_use = NetworkEndian::read_u32(data.get(4..8).unwrap());
                 let header_ip = NetworkEndian::read_u64(data.get(8..16).unwrap());
                 match code {
@@ -155,8 +164,8 @@ impl ICMP {
                     _ => unreachable!()
                 }
             }
-            (4 | 6, _) => ICMPData::OutDate,
-            (5, code) => {
+            4 | 6 | 15 | 16 | 17 | 18 | 30..=39 => ICMPData::OutDate,
+            5 => {
                 let addr = NetworkEndian::read_u32(data.get(4..8).unwrap());
                 let header_ip = NetworkEndian::read_u64(data.get(8..16).unwrap());
                 match code {
@@ -167,9 +176,9 @@ impl ICMP {
                     _ => unreachable!()
                 }
             }
-            (9, _) => ICMPData::RouterAdvertisement,
-            (10, _) => ICMPData::RouterRequest,
-            (11, code) => {
+            9 => ICMPData::RouterAdvertisement,
+            10 => ICMPData::RouterRequest,
+            11 => {
                 let addr = NetworkEndian::read_u32(data.get(4..8).unwrap());
                 let header_ip = NetworkEndian::read_u64(data.get(8..16).unwrap());
                 match code {
@@ -178,6 +187,40 @@ impl ICMP {
                     _ => unreachable!()
                 }
             }
+            12 => {
+                let not_use = NetworkEndian::read_u32(data.get(4..8).unwrap());
+                let header_ip = NetworkEndian::read_u64(data.get(8..16).unwrap());
+                match code {
+                    0 => ICMPData::InvalidParams(InvalidParams::PtrError {
+                        ptr: data.get(4).unwrap().clone(),
+                        not_use,
+                        header_ip,
+                    }),
+                    1 => ICMPData::InvalidParams(InvalidParams::MissingOptions {
+                        not_use,
+                        header_ip,
+                    }),
+                    2 => ICMPData::InvalidParams(InvalidParams::Length {
+                        not_use,
+                        header_ip,
+                    }),
+                    _ => unreachable!()
+                }
+            }
+            13 => ICMPData::ReqTime(ReqTime::from(data.get(4..).unwrap())),
+            14 => ICMPData::ResTime(ReqTime::from(data.get(4..).unwrap())),
+            40 => {
+                ICMPData::Photuris(match code {
+                    0 => Photuris::Reserved,
+                    1 => Photuris::UnknownIndex,
+                    2 => Photuris::AuthError,
+                    3 => Photuris::DecodeError,
+                    4 => Photuris::NeedValid,
+                    5 => Photuris::NeedAuth,
+                    _ => unreachable!()
+                })
+            }
+            41 | 253 | 254 => ICMPData::Experimental,
             _ => ICMPData::Unknown
         };
         ICMP {
