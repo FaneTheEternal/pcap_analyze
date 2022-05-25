@@ -26,8 +26,9 @@ pub struct TCP {
     window_size: u16,
     checksum: u16,
     urgent_point: u16,
-    pub options: Vec<u8>,
+    options: Vec<u8>,
     data: Vec<u8>,
+    layers: Layers,
 }
 
 impl TCP {
@@ -53,6 +54,11 @@ impl TCP {
         let checksum = NetworkEndian::read_u16(data.get(16..18).unwrap());
         let urgent_point = NetworkEndian::read_u16(data.get(18..20).unwrap());
         let options = data.get(20..(header_len.clone() as usize * 4)).unwrap().to_vec();
+        let data = data.get((header_len.clone() as usize * 4)..).unwrap().to_vec();
+        let mut layers = Layers::default();
+        if let Some(http) = HTTP::try_make(data.as_slice()) {
+            layers.insert(http);
+        }
         TCP {
             src,
             dst,
@@ -64,7 +70,14 @@ impl TCP {
             checksum,
             urgent_point,
             options,
-            data: data.get((header_len as usize)..).unwrap().to_vec(),
+            data,
+            layers,
         }
+    }
+}
+
+impl HasLayers for TCP {
+    fn layers(&self) -> &Layers {
+        &self.layers
     }
 }

@@ -12,6 +12,7 @@ fn main() {
     let mut udp_count = 0;
     let mut icmp_count = 0;
     let mut arp_count = 0;
+    let mut http_count = 0;
     let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
     loop {
         match reader.next() {
@@ -39,6 +40,10 @@ fn main() {
                         if let Some(_) = frame.get_layer::<ARP>() {
                             arp_count += 1;
                         }
+                        if let Some(_) = frame.get_layer::<HTTP>() {
+                            println!("[] {}", num_blocks);
+                            http_count += 1;
+                        }
                         // break;
                     }
                     PcapBlockOwned::NG(_) => unreachable!(),
@@ -58,4 +63,5 @@ fn main() {
     dbg!(udp_count);
     dbg!(icmp_count);
     dbg!(arp_count);
+    dbg!(http_count);
 }

@@ -98,7 +98,7 @@ impl HasLayers for IPv4 {
         &self.layers
     }
     fn get_layer_descendants<T>(&self) -> Option<&T> where T: Layer {
-        get_layer_descendants!(self, T, UDP)
+        get_layer_descendants!(self, T, UDP, TCP)
     }
 }
 
