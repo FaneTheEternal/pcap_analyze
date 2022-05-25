@@ -21,6 +21,7 @@ impl std::fmt::Debug for Ethernet {
 
 impl Ethernet {
     const IP4: [u8; 2] = [0x08, 0x00];
+    const ARP: [u8; 2] = [0x08, 0x06];
     const IP6: [u8; 2] = [0x86, 0xDD];
 
     pub fn new(data: &[u8]) -> Ethernet {
@@ -29,6 +30,9 @@ impl Ethernet {
         match eth_type {
             Self::IP4 => {
                 layers.insert(IPv4::new(data.get(14..).unwrap()));
+            }
+            Self::ARP => {
+                layers.insert(ARP::new(data.get(14..).unwrap()));
             }
             _ => {}
         }
