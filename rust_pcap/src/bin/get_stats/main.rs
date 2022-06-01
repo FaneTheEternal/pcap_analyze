@@ -20,6 +20,8 @@ fn main() {
     let mut ports = HashSet::new();
     let mut data_bytes = 0;
     let mut pkt_sizes = Vec::new();
+    let mut last_time = None;
+    let mut pkt_times = Vec::new();
     let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
     loop {
         match reader.next() {
@@ -31,6 +33,11 @@ fn main() {
                     }
                     PcapBlockOwned::Legacy(b) => {
                         pkt_sizes.push(b.data.len());
+                        if let Some(time) = last_time {
+                            pkt_times.push(time - b.ts_sec);
+                        }
+                        last_time = Some(b.ts_sec);
+
                         let frame = Frame::new(b.data);
                         // let eth = frame.get_layer::<Ethernet>().unwrap();
                         if let Some(ipv4) = frame.get_layer::<IPv4>() {
@@ -92,4 +99,10 @@ fn main() {
         .map(|&s| (avg_size - s as f32).abs())
         .sum::<f32>() / num_blocks as f32;
     dbg!(avg_deltas_size);
+    let avg_time = pkt_times.iter().sum::<u32>() as f32 / pkt_times.len() as f32;
+    dbg!(avg_time);
+    let avg_delta_time = pkt_times.iter()
+        .map(|&t| (avg_time - t as f32).abs())
+        .sum::<f32>() / pkt_times.len() as f32;
+    dbg!(avg_delta_time);
 }
