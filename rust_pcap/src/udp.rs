@@ -8,6 +8,7 @@ pub struct UDP {
     dst: u16,
     len: u16,
     checksum: u16,
+    pub payload: Vec<u8>,
 
     layers: Layers,
 }
@@ -29,6 +30,7 @@ impl UDP {
             dst: NetworkEndian::read_u16(data.get(2..4).unwrap()),
             len: NetworkEndian::read_u16(data.get(4..6).unwrap()),
             checksum: NetworkEndian::read_u16(data.get(6..8).unwrap()),
+            payload: data.get(8..).unwrap().to_vec(),
             layers,
         }
     }

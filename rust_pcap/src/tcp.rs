@@ -17,8 +17,8 @@ pub struct TCPFlags {
 
 #[derive(Debug, Layer)]
 pub struct TCP {
-    src: u16,
-    dst: u16,
+    pub src: u16,
+    pub dst: u16,
     sn: u32,
     ack_sn: u32,
     header_len: u8,
@@ -27,7 +27,7 @@ pub struct TCP {
     checksum: u16,
     urgent_point: u16,
     options: Vec<u8>,
-    data: Vec<u8>,
+    pub data: Vec<u8>,
     layers: Layers,
 }
 
