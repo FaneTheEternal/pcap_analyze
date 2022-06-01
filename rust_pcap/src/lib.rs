@@ -12,6 +12,7 @@ mod icmp;
 mod tcp;
 mod arp;
 mod http;
+mod dhcp;
 
 pub use frame::*;
 pub use ethernet::*;
@@ -21,6 +22,7 @@ pub use icmp::*;
 pub use tcp::*;
 pub use arp::*;
 pub use http::*;
+pub use dhcp::*;
 
 pub use analyze_derive::*;
 
