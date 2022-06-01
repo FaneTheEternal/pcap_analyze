@@ -112,18 +112,7 @@ class Count:
                 count.DHCP += 1
 
             if pkt.time - start_stamp > period:
-                pkt_count = len(pkt_sizes)
-                # sizes
-                count.avg_pkt_size = sum(pkt_sizes) / pkt_count
-                deltas = map(lambda n: abs(count.avg_pkt_size - n), pkt_sizes)
-                count.avg_delta_pkt_size = sum(deltas) / pkt_count
-                count.BYTES = sum(pkt_sizes)
-
-                # times
-                intervals_count = len(time_intervals)
-                count.avg_time = sum(time_intervals) / intervals_count
-                deltas = map(lambda t: abs(count.avg_time - t), time_intervals)
-                count.avg_delta_time = sum(deltas) / intervals_count
+                pkt_count = cls._compute(count, pkt_sizes, time_intervals)
 
                 # return result & reset counts
                 print(f'{c} with {pkt_count}')
@@ -134,6 +123,26 @@ class Count:
                 last_stamp = None
                 time_intervals = []
                 pkt_sizes = []
+        if pkt_sizes:
+            pkt_count = cls._compute(count, pkt_sizes, time_intervals)
+            print(f'{c} with {pkt_count}')
+            yield count
+
+    @staticmethod
+    def _compute(count, pkt_sizes, time_intervals):
+        pkt_count = len(pkt_sizes)
+        # sizes
+        count.avg_pkt_size = sum(pkt_sizes) / pkt_count
+        deltas = map(lambda n: abs(count.avg_pkt_size - n), pkt_sizes)
+        count.avg_delta_pkt_size = sum(deltas) / pkt_count
+        count.BYTES = sum(pkt_sizes)
+
+        # times
+        intervals_count = len(time_intervals)
+        count.avg_time = sum(time_intervals) / intervals_count
+        deltas = map(lambda t: abs(count.avg_time - t), time_intervals)
+        count.avg_delta_time = sum(deltas) / intervals_count
+        return pkt_count
 
     def as_row(self):
         return [
