@@ -79,6 +79,7 @@ pub enum Forward {
 pub enum TTLExpire {
     Transportation,
     BuildFrag,
+    Unknown(u8),
 }
 
 #[derive(Debug)]
@@ -184,7 +185,7 @@ impl ICMP {
                 match code {
                     0 => ICMPData::TTLExpire { kind: TTLExpire::Transportation, addr, header_ip },
                     1 => ICMPData::TTLExpire { kind: TTLExpire::BuildFrag, addr, header_ip },
-                    _ => unreachable!()
+                    _ => ICMPData::TTLExpire { kind: TTLExpire::Unknown(code), addr, header_ip },
                 }
             }
             12 => {

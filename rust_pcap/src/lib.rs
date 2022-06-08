@@ -13,6 +13,7 @@ mod tcp;
 mod arp;
 mod http;
 mod dhcp;
+mod iter_pcap;
 
 pub use frame::*;
 pub use ethernet::*;
@@ -23,6 +24,8 @@ pub use tcp::*;
 pub use arp::*;
 pub use http::*;
 pub use dhcp::*;
+
+pub use iter_pcap::*;
 
 pub use analyze_derive::*;
 
