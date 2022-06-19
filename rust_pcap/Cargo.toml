@@ -14,5 +14,6 @@ pcap-parser = { version = "0.14.0", features = ["data"] }
 byteorder = "1.4.3"
 derive_more = "0.99.17"
 analyze_derive = { path = "crates/analyze_derive" }
+rand = "0.8.5"
 
 tensorflow = "0.18.0"

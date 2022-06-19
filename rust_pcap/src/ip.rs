@@ -4,9 +4,9 @@ use crate::icmp::ICMP;
 
 #[derive(Layer)]
 pub struct IPFlags {
-    null: bool,
-    df: bool,
-    mf: bool,
+    pub null: bool,
+    pub df: bool,
+    pub mf: bool,
 }
 
 #[derive(Layer)]

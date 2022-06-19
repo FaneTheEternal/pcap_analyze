@@ -4,15 +4,15 @@ use crate::*;
 
 #[derive(Debug)]
 pub struct TCPFlags {
-    ns: bool,
-    cwr: bool,
-    ece: bool,
-    urg: bool,
-    ack: bool,
-    psh: bool,
-    rst: bool,
-    syn: bool,
-    fin: bool,
+    pub ns: bool,
+    pub cwr: bool,
+    pub ece: bool,
+    pub urg: bool,
+    pub ack: bool,
+    pub psh: bool,
+    pub rst: bool,
+    pub syn: bool,
+    pub fin: bool,
 }
 
 #[derive(Debug, Layer)]
@@ -22,7 +22,7 @@ pub struct TCP {
     sn: u32,
     ack_sn: u32,
     header_len: u8,
-    flags: TCPFlags,
+    pub flags: TCPFlags,
     window_size: u16,
     checksum: u16,
     urgent_point: u16,
