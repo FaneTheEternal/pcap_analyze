@@ -65,9 +65,9 @@ fn layer<O1: Into<Output>>(
     ))
 }
 
-pub fn train<P: AsRef<Path>, const I: usize>(
+pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
     save_dir: P,
-    train_data: &[([f32; I], (f32, f32, f32))],
+    train_data: &[([f32; I], [f32; O])],
 ) -> Result<(), Box<dyn Error>>
 {
     // ================
@@ -75,37 +75,55 @@ pub fn train<P: AsRef<Path>, const I: usize>(
     // ================
     let mut scope = Scope::new_root_scope();
     let scope = &mut scope;
-    let hidden_size: u64 = 1024;
     let input = ops::Placeholder::new()
         .dtype(DataType::Float)
         .shape([1u64, I as u64])
         .build(&mut scope.with_op_name("input"))?;
     let label = ops::Placeholder::new()
         .dtype(DataType::Float)
-        .shape([1u64, 3])
+        .shape([1u64, O as u64])
         .build(&mut scope.with_op_name("label"))?;
-    // Hidden layer.
+    let hidden_size1: u64 = 256;
+    let hidden_size2: u64 = 512;
+    let hidden_size3: u64 = 128;
+    // Hidden layers.
     let (vars1, layer1) = layer(
         input.clone(),
         I as u64,
-        hidden_size,
+        hidden_size1,
+        &|x, scope| Ok(ops::tanh(x, scope)?.into()),
+        scope,
+    )?;
+    let (vars2, layer2) = layer(
+        layer1.clone(),
+        hidden_size1,
+        hidden_size2,
+        &|x, scope| Ok(ops::tanh(x, scope)?.into()),
+        scope,
+    )?;
+    let (vars3, layer3) = layer(
+        layer2.clone(),
+        hidden_size2,
+        hidden_size3,
         &|x, scope| Ok(ops::tanh(x, scope)?.into()),
         scope,
     )?;
     // Output layer.
-    let (vars2, layer2) = layer(
-        layer1.clone(),
-        hidden_size,
-        3,
-        &|x, _| Ok(x), scope,
+    let (vars_output, layer_output) = layer(
+        layer3.clone(),
+        hidden_size3,
+        O as u64,
+        &|x, _| Ok(x),
+        scope,
     )?;
-    let error = ops::sub(layer2.clone(), label.clone(), scope)?;
+    let error = ops::sub(layer_output.clone(), label.clone(), scope)?;
     let error_squared = ops::mul(error.clone(), error, scope)?;
     let mut optimizer = AdadeltaOptimizer::new();
-    optimizer.set_learning_rate(ops::constant(1.0f32, scope)?);
     let mut variables = Vec::new();
     variables.extend(vars1);
     variables.extend(vars2);
+    variables.extend(vars3);
+    variables.extend(vars_output);
     let (minimizer_vars, minimize) = optimizer.minimize(
         scope,
         error_squared.clone().into(),
@@ -134,7 +152,11 @@ pub fn train<P: AsRef<Path>, const I: usize>(
             );
             def.add_output_info(
                 REGRESS_OUTPUTS.to_string(),
-                TensorInfo::new(DataType::Float, Shape::from(None), layer2.name()?),
+                TensorInfo::new(
+                    DataType::Float,
+                    Shape::from(None),
+                    layer_output.name()?,
+                ),
             );
             def
         });
@@ -161,16 +183,16 @@ pub fn train<P: AsRef<Path>, const I: usize>(
     // Train the model.
     // ================
     let mut input_tensor = Tensor::<f32>::new(&[1, I as u64]);
-    let mut label_tensor = Tensor::<f32>::new(&[1, 3]);
+    let mut label_tensor = Tensor::<f32>::new(&[1, O as u64]);
     // Helper that generates a training example from an integer, trains on that
     // example, and returns the error.
-    let mut train = |stats: [f32; I], res: (f32, f32, f32)| -> Result<(f32, f32, f32), Box<dyn Error>> {
+    let mut train = |stats: [f32; I], res: [f32; O]| -> Result<[f32; O], Box<dyn Error>> {
         for i in 0..I {
             input_tensor[i] = stats[i];
         }
-        label_tensor[0] = res.0;
-        label_tensor[1] = res.1;
-        label_tensor[2] = res.2;
+        for i in 0..O {
+            label_tensor[i] = res[i];
+        }
         let mut run_args = SessionRunArgs::new();
         run_args.add_target(&minimize);
         let error_squared_fetch = run_args.request_fetch(&error_squared, 0);
@@ -178,15 +200,26 @@ pub fn train<P: AsRef<Path>, const I: usize>(
         run_args.add_feed(&label, 0, &label_tensor);
         session.run(&mut run_args)?;
         let fetched = run_args.fetch::<f32>(error_squared_fetch)?;
-        Ok((fetched[0], fetched[1], fetched[2]))
+        Ok(fetched.iter().map(|&e| e).collect::<Vec<f32>>().try_into().unwrap())
     };
     for epoch in 0..1_000_000 {
-        let mut last = None;
+        let mut errors = Vec::new();
         for (row, res) in train_data {
-            last = Some(train(row.clone(), res.clone())?);
+            errors.push(train(row.clone(), res.clone())?);
         }
-        if epoch % 10 == 0 {
-            println!("EPOCH:\t{} ERROR:\t{:?}", epoch, last.unwrap())
+        if epoch % 100 == 0 {
+            let count = errors.len() as f32;
+            let errors = errors.into_iter()
+                .fold(vec![0.0; O], |r, e| {
+                    r.into_iter()
+                        .zip(e.into_iter())
+                        .map(|(l, r)| { l + r })
+                        .collect::<Vec<f32>>()
+                });
+            let errors = errors.into_iter()
+                .map(|e| format!("{}", e / count))
+                .collect::<Vec<String>>().join("\t");
+            println!("EPOCH:\t{}\tERROR SQUARED:\t{}", epoch, errors);
         }
     }
 
