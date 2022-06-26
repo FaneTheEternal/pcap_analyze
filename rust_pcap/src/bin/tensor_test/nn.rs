@@ -202,7 +202,7 @@ pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
         let fetched = run_args.fetch::<f32>(error_squared_fetch)?;
         Ok(fetched.iter().map(|&e| e).collect::<Vec<f32>>().try_into().unwrap())
     };
-    for epoch in 0..1_000_000 {
+    for epoch in 0..50_000 {
         let mut errors = Vec::new();
         for (row, res) in train_data {
             errors.push(train(row.clone(), res.clone())?);

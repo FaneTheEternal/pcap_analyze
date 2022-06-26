@@ -50,18 +50,41 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
         .filter(|e| !e.is_empty())
         .map(|e| e.parse::<u8>().unwrap())
         .map(|e| [
-            if e & DELAY > 0 {1.0} else {0.0},
-            if e & UNREACHABLE > 0 {1.0} else {0.0},
-            if e & PAYLOAD > 0 {1.0} else {0.0},
-            if e & RANGE > 0 {1.0} else {0.0},
+            if e & DELAY > 0 { 1.0 } else { 0.0 },
+            if e & UNREACHABLE > 0 { 1.0 } else { 0.0 },
+            if e & PAYLOAD > 0 { 1.0 } else { 0.0 },
+            if e & RANGE > 0 { 1.0 } else { 0.0 },
         ])
         .collect::<Vec<_>>();
 
     let out = File::open("out.cap").unwrap();
     let out = Count::compute_legacy(out);
 
+    let mut offset = 0usize;
     out.into_iter()
-        .zip(out_target.into_iter())
+        .map(|c| {
+            let before = offset + c.total;
+            let target = out_target.get(offset..before).unwrap();
+            offset = before;
+            // let target_len = target.len() as f32;
+            // (c, [
+            //     target.iter().map(|&t| t[0]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[1]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[2]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[3]).sum::<f32>() / target_len,
+            // ])
+
+            let target = target.into_iter()
+                .fold([0.0; 4], |acc, &r| {
+                    [
+                        (acc[0] as u8 & r[0] as u8) as f32,
+                        (acc[1] as u8 & r[1] as u8) as f32,
+                        (acc[2] as u8 & r[2] as u8) as f32,
+                        (acc[3] as u8 & r[3] as u8) as f32,
+                    ]
+                });
+            (c, target)
+        })
         .collect()
 }
 
@@ -93,6 +116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 d.avg_deltas_time,
             ];
             // println!("{:?}", row);
+            // println!("{:?}", res);
             (row, res)
         })
         .collect::<Vec<_>>();
