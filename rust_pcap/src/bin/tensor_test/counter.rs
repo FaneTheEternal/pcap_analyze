@@ -50,7 +50,7 @@ pub struct Count {
 }
 
 impl Count {
-    pub fn _compute(&mut self, sizes: &Vec<usize>, intervals: &Vec<u32>) {
+    fn _compute_avg(&mut self, sizes: &Vec<usize>, intervals: &Vec<u32>) {
         let pkt_count = sizes.len();
 
         self.bytes = sizes.iter().sum();
@@ -67,6 +67,16 @@ impl Count {
     }
 
     pub fn compute(file: File) -> Vec<Count> {
+        Self::_compute(PcapNG::new(file))
+    }
+
+    pub fn compute_legacy(file: File) -> Vec<Count> {
+        Self::_compute(Pcap::new(file))
+    }
+
+    pub fn _compute(mut pcap: impl Iterator<Item=Frame>) -> Vec<Count> {
+        let mut counter = 0usize;
+
         let mut counts = Vec::new();
 
         let mut count = Self::default();
@@ -78,7 +88,9 @@ impl Count {
 
         let mut intervals = Vec::new();
 
-        iter_over_pcapng(file, |frame| {
+        for frame in pcap {
+            counter += 1;
+
             count.total += 1;
 
             if let Some(time) = last {
@@ -131,7 +143,7 @@ impl Count {
             }
 
             if frame.ts_sec - start.unwrap() > 2 {
-                count._compute(&sizes, &intervals);
+                count._compute_avg(&sizes, &intervals);
                 counts.push(std::mem::replace(&mut count, Self::default()));
 
                 start = None;
@@ -139,13 +151,13 @@ impl Count {
                 intervals.clear();
                 sizes.clear();
             }
+        }
 
-            false
-        });
         if sizes.len() > 1 {
-            count._compute(&sizes, &intervals);
+            count._compute_avg(&sizes, &intervals);
             counts.push(count);
         }
+        println!("COUNTS APPLY {} FRAMES", counter);
         counts
     }
 }
