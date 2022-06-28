@@ -65,71 +65,67 @@ fn layer<O1: Into<Output>>(
     ))
 }
 
-pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
+pub fn gtrain<P: AsRef<Path>, const I: usize, const O: usize>(
     save_dir: P,
     train_data: &[([f32; I], [f32; O])],
+    hidden_layers: &[u64],
 ) -> Result<(), Box<dyn Error>>
 {
-    // ================
-    // Build the model.
-    // ================
+    assert!(!hidden_layers.is_empty());
+
     let mut scope = Scope::new_root_scope();
-    let scope = &mut scope;
     let input = ops::Placeholder::new()
         .dtype(DataType::Float)
         .shape([1u64, I as u64])
         .build(&mut scope.with_op_name("input"))?;
-    let label = ops::Placeholder::new()
+    let output = ops::Placeholder::new()
         .dtype(DataType::Float)
         .shape([1u64, O as u64])
-        .build(&mut scope.with_op_name("label"))?;
-    let hidden_size1: u64 = 256;
-    let hidden_size2: u64 = 512;
-    let hidden_size3: u64 = 128;
-    // Hidden layers.
-    let (vars1, layer1) = layer(
+        .build(&mut scope.with_op_name("output"))?;
+    let (vars0, layer0) = layer(
         input.clone(),
         I as u64,
-        hidden_size1,
+        *hidden_layers.get(0).unwrap(),
         &|x, scope| Ok(ops::tanh(x, scope)?.into()),
-        scope,
+        &mut scope,
     )?;
-    let (vars2, layer2) = layer(
-        layer1.clone(),
-        hidden_size1,
-        hidden_size2,
-        &|x, scope| Ok(ops::tanh(x, scope)?.into()),
-        scope,
-    )?;
-    let (vars3, layer3) = layer(
-        layer2.clone(),
-        hidden_size2,
-        hidden_size3,
-        &|x, scope| Ok(ops::tanh(x, scope)?.into()),
-        scope,
-    )?;
-    // Output layer.
+    let (vars_hidden, layer_hidden) = {
+        let mut vars = Vec::new();
+        let mut last_size = hidden_layers.get(0).unwrap().clone();
+        let mut last_layer = layer0.clone();
+        for &hsize in hidden_layers.get(1..).unwrap() {
+            let (vars_n, layer_n) = layer(
+                last_layer,
+                last_size,
+                hsize,
+                &|x, scope| Ok(ops::tanh(x, scope)?.into()),
+                &mut scope,
+            )?;
+            vars.extend(vars_n);
+            last_size = hsize;
+            last_layer = layer_n;
+        }
+        (vars, last_layer)
+    };
     let (vars_output, layer_output) = layer(
-        layer3.clone(),
-        hidden_size3,
+        layer_hidden,
+        *hidden_layers.last().unwrap(),
         O as u64,
         &|x, _| Ok(x),
-        scope,
+        &mut scope,
     )?;
-    let error = ops::sub(layer_output.clone(), label.clone(), scope)?;
-    let error_squared = ops::mul(error.clone(), error, scope)?;
+    let error = ops::sub(layer_output.clone(), output.clone(), &mut scope)?;
+    let error_squared = ops::mul(error.clone(), error, &mut scope)?;
     let mut optimizer = AdadeltaOptimizer::new();
     let mut variables = Vec::new();
-    variables.extend(vars1);
-    variables.extend(vars2);
-    variables.extend(vars3);
+    variables.extend(vars0);
+    variables.extend(vars_hidden);
     variables.extend(vars_output);
     let (minimizer_vars, minimize) = optimizer.minimize(
-        scope,
+        &mut scope,
         error_squared.clone().into(),
         MinimizeOptions::default().with_variables(&variables),
     )?;
-
     let mut all_vars = variables.clone();
     all_vars.extend_from_slice(&minimizer_vars);
     let mut builder = tensorflow::SavedModelBuilder::new();
@@ -160,52 +156,38 @@ pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
             );
             def
         });
-    let saved_model_saver = builder.inject(scope)?;
+    let saver = builder.inject(&mut scope)?;
 
-    // =========================
-    // Initialize the variables.
-    // =========================
     let options = SessionOptions::new();
-    let g = scope.graph_mut();
-    let session = Session::new(&options, &g)?;
+    let graph = scope.graph_mut();
+    let session = Session::new(&options, &graph)?;
     let mut run_args = SessionRunArgs::new();
-    // Initialize variables we defined.
     for var in &variables {
-        run_args.add_target(&var.initializer());
+        run_args.add_target(var.initializer())
     }
-    // Initialize variables the optimizer defined.
     for var in &minimizer_vars {
-        run_args.add_target(&var.initializer());
+        run_args.add_target(var.initializer());
     }
     session.run(&mut run_args)?;
 
-    // ================
-    // Train the model.
-    // ================
-    let mut input_tensor = Tensor::<f32>::new(&[1, I as u64]);
-    let mut label_tensor = Tensor::<f32>::new(&[1, O as u64]);
-    // Helper that generates a training example from an integer, trains on that
-    // example, and returns the error.
-    let mut train = |stats: [f32; I], res: [f32; O]| -> Result<[f32; O], Box<dyn Error>> {
-        for i in 0..I {
-            input_tensor[i] = stats[i];
-        }
-        for i in 0..O {
-            label_tensor[i] = res[i];
-        }
+    let mut in_tensor = Tensor::<f32>::new(&[1, I as u64]);
+    let mut out_tensor = Tensor::<f32>::new(&[1, O as u64]);
+    let mut train = |row: &[f32; I], target: &[f32; O]| -> Result<[f32; O], Box<dyn Error>> {
+        in_tensor.copy_from_slice(row);
+        out_tensor.copy_from_slice(target);
         let mut run_args = SessionRunArgs::new();
         run_args.add_target(&minimize);
         let error_squared_fetch = run_args.request_fetch(&error_squared, 0);
-        run_args.add_feed(&input, 0, &input_tensor);
-        run_args.add_feed(&label, 0, &label_tensor);
+        run_args.add_feed(&input, 0, &in_tensor);
+        run_args.add_feed(&output, 0, &out_tensor);
         session.run(&mut run_args)?;
         let fetched = run_args.fetch::<f32>(error_squared_fetch)?;
-        Ok(fetched.iter().map(|&e| e).collect::<Vec<f32>>().try_into().unwrap())
+        Ok(fetched.to_vec().try_into().unwrap())
     };
     for epoch in 0..50_000 {
         let mut errors = Vec::new();
-        for (row, res) in train_data {
-            errors.push(train(row.clone(), res.clone())?);
+        for (row, target) in train_data {
+            errors.push(train(row, target)?);
         }
         if epoch % 100 == 0 {
             let count = errors.len() as f32;
@@ -223,12 +205,17 @@ pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
         }
     }
 
-    // ================
-    // Save the model.
-    // ================
-    saved_model_saver.save(&session, &g, &save_dir)?;
+    saver.save(&session, &graph, &save_dir)?;
     println!("Model saved in {}", save_dir.as_ref().display());
     Ok(())
+}
+
+pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
+    save_dir: P,
+    train_data: &[([f32; I], [f32; O])],
+) -> Result<(), Box<dyn Error>>
+{
+    gtrain(save_dir, train_data, &[256, 512, 128])
 }
 
 pub fn eval<P: AsRef<Path>>(save_dir: P, eval_data: &[(String, [f32; 16], (f32, f32, f32))]) -> Result<(), Box<dyn Error>> {

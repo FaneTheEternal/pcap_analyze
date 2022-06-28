@@ -14,7 +14,7 @@ use rand::prelude::*;
 use rust_pcap::*;
 
 use crate::counter::Count;
-use crate::nn::{eval, train};
+use crate::nn::{eval, train, gtrain};
 
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();
