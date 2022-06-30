@@ -19,5 +19,10 @@ byteorder = "1.4.3"
 derive_more = "0.99.17"
 analyze_derive = { path = "crates/analyze_derive" }
 rand = "0.8.5"
+ron = "0.7.1"
+serde = { version = "1.0.137", features = ["derive"] }
+
+tracing = "0.1.35"
+tracing-subscriber = "0.3.11"
 
 tensorflow = { version = "0.18.0", features = ["tensorflow_gpu"] }

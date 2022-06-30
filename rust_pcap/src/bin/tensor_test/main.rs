@@ -1,5 +1,6 @@
 mod nn;
 mod counter;
+mod profile;
 
 use std::collections::HashSet;
 use std::env;
@@ -11,10 +12,12 @@ use std::io::{ErrorKind, Read};
 use std::path::Path;
 use std::time::Instant;
 use rand::prelude::*;
+use tensorflow::train::AdadeltaOptimizer;
 use rust_pcap::*;
 
 use crate::counter::Count;
-use crate::nn::{eval, train, gtrain};
+use crate::nn::{eval, train, gtrain, GenericNeuralNetwork};
+use crate::profile::LearnInstance;
 
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();
@@ -88,7 +91,25 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
         .collect()
 }
 
+fn q_del<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
+    match std::fs::remove_dir_all(path.as_ref()) {
+        Err(e) => {
+            if e.kind() != ErrorKind::NotFound {
+                return Err(Box::new(e));
+            }
+        }
+        Ok(_) => {}
+    };
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
+    let format = tracing_subscriber::fmt::format()
+        .with_target(false);
+    tracing_subscriber::fmt()
+        .event_format(format)
+        .init();
+
     // let mut data_set = read3();
     let mut data_set = read_generated();
     let mut rng = thread_rng();
@@ -121,16 +142,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>();
 
-    let mut model_path = env::temp_dir();
-    model_path.push("tf-pcapgn-analyze-model");
-    match std::fs::remove_dir_all(&model_path) {
-        Err(e) => {
-            if e.kind() != ErrorKind::NotFound {
-                return Err(Box::new(e));
-            }
-        }
-        Ok(_) => {}
-    }
-    train(&model_path, data.as_slice())?;
+    let split = (data.len() as f32 * 0.8) as usize;
+    let train_data = data.get(..split).unwrap();
+    let eval_data = data.get(split..).unwrap();
+
+    let model = GenericNeuralNetwork::new(
+        &[4],
+        500,
+        100,
+        Box::new(AdadeltaOptimizer::new()),
+    );
+    model.train(&train_data)?;
+    model.check(&eval_data)?;
     Ok(())
 }
