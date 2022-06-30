@@ -1,6 +1,7 @@
 mod nn;
 mod counter;
 mod profile;
+mod csv;
 
 use std::collections::HashSet;
 use std::env;
@@ -69,24 +70,24 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
             let before = offset + c.total;
             let target = out_target.get(offset..before).unwrap();
             offset = before;
-            // let target_len = target.len() as f32;
-            // (c, [
-            //     target.iter().map(|&t| t[0]).sum::<f32>() / target_len,
-            //     target.iter().map(|&t| t[1]).sum::<f32>() / target_len,
-            //     target.iter().map(|&t| t[2]).sum::<f32>() / target_len,
-            //     target.iter().map(|&t| t[3]).sum::<f32>() / target_len,
-            // ])
+            let target_len = target.len() as f32;
+            (c, [
+                target.iter().map(|&t| t[0]).sum::<f32>() / target_len,
+                target.iter().map(|&t| t[1]).sum::<f32>() / target_len,
+                target.iter().map(|&t| t[2]).sum::<f32>() / target_len,
+                target.iter().map(|&t| t[3]).sum::<f32>() / target_len,
+            ])
 
-            let target = target.into_iter()
-                .fold([0.0; 4], |acc, &r| {
-                    [
-                        (acc[0] as u8 & r[0] as u8) as f32,
-                        (acc[1] as u8 & r[1] as u8) as f32,
-                        (acc[2] as u8 & r[2] as u8) as f32,
-                        (acc[3] as u8 & r[3] as u8) as f32,
-                    ]
-                });
-            (c, target)
+            // let target = target.into_iter()
+            //     .fold([0.0; 4], |acc, &r| {
+            //         [
+            //             (acc[0] as u8 & r[0] as u8) as f32,
+            //             (acc[1] as u8 & r[1] as u8) as f32,
+            //             (acc[2] as u8 & r[2] as u8) as f32,
+            //             (acc[3] as u8 & r[3] as u8) as f32,
+            //         ]
+            //     });
+            // (c, target)
         })
         .collect()
 }
@@ -142,16 +143,47 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>();
 
+    {
+        csv::save(
+            data.as_slice(),
+            [
+                "total".to_string(),
+                "ip".to_string(),
+                "icmp".to_string(),
+                "tcp".to_string(),
+                "udp".to_string(),
+                "arp".to_string(),
+                "smtp".to_string(),
+                "dhcp".to_string(),
+                "addresses".to_string(),
+                "ports".to_string(),
+                "bytes".to_string(),
+                "data_bytes".to_string(),
+                "avg_size".to_string(),
+                "avg_deltas_size".to_string(),
+                "avg_time".to_string(),
+                "avg_deltas_time".to_string(),
+            ],
+            [
+                String::from("DELAY"),
+                String::from("UNREACHABLE"),
+                String::from("PAYLOAD"),
+                String::from("RANGE"),
+            ],
+        )?;
+    }
+
     let split = (data.len() as f32 * 0.8) as usize;
     let train_data = data.get(..split).unwrap();
     let eval_data = data.get(split..).unwrap();
 
     let model = GenericNeuralNetwork::new(
         &[4],
-        500,
+        1_000,
         100,
         Box::new(AdadeltaOptimizer::new()),
     );
+    q_del(model.model_path())?;
     model.train(&train_data)?;
     model.check(&eval_data)?;
     Ok(())

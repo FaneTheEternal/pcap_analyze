@@ -26,3 +26,5 @@ tracing = "0.1.35"
 tracing-subscriber = "0.3.11"
 
 tensorflow = { version = "0.18.0", features = ["tensorflow_gpu"] }
+
+csv = "1.1.6"

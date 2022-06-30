@@ -306,6 +306,7 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
             let fetched = run_args.fetch::<f32>(error_squared_fetch)?;
             Ok(fetched.to_vec().try_into().unwrap())
         };
+        let width = self.epoch.to_string().chars().count();
         let mut g_errors = Vec::<[f32; O]>::new();
         for epoch in 0..=self.epoch {
             let mut errors = Vec::new();
@@ -327,12 +328,13 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
 
                 info!(
                     "[EPOCH {:>width$}/{}] ERROR SQUARED: {}",
-                    epoch, self.epoch, errors.iter().map(|e| format!("{:^7}", e)).collect::<Vec<_>>().join(" "),
-                    width = self.epoch.to_string().chars().count(),
+                    epoch, self.epoch, fmt_iter!(errors, " ", "{:^12}"),
+                    width = width,
                 );
                 g_errors.push(errors.try_into().unwrap());
             }
         }
+        info!("FINAL ERROR SQUARED: {}", fmt_iter!(g_errors.last().unwrap(), " ", "{:^12}"));
 
         let save_dir = self.model_path();
         saver.save(&session, &graph, save_dir)?;
@@ -365,6 +367,7 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
         let output_op = graph.operation_by_name_required(&output_info.name().name)?;
 
         let mut input_tensor = Tensor::<f32>::new(&[1, I as u64]);
+        let mut errors = Vec::new();
         for (row, target) in data {
             input_tensor.copy_from_slice(row);
             let mut run_args = SessionRunArgs::new();
@@ -372,9 +375,30 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
             let output_fetch = run_args.request_fetch(&output_op, output_info.name().index);
             session.run(&mut run_args)?;
             let fetched = run_args.fetch::<f32>(output_fetch)?;
-            info!("EXPECTED: {}", fmt_iter!(target, " ", "{:^7}"));
-            info!("FETCHED:  {}", fmt_iter!(fetched, " ", "{:^7}"));
+            // let res = fetched.iter()
+            //     .zip(target.iter())
+            //     .map(|(f, t)| format!("{:^12}({:^12})", f, t))
+            //     .collect::<Vec<_>>()
+            //     .join(" ");
+            // info!("{}", res);
+            let error = fetched.iter()
+                .zip(target)
+                .map(|(f, t)| (f - t).abs())
+                .collect::<Vec<_>>();
+            errors.push(error);
         }
+        let count = errors.len() as f32;
+        let avg_err = errors.into_iter()
+            .fold(vec![0f32; O], |acc, e| {
+                acc.into_iter()
+                    .zip(e)
+                    .map(|(a, e)| a + e)
+                    .collect::<Vec<_>>()
+            })
+            .into_iter()
+            .map(|e| e / count)
+            .collect::<Vec<f32>>();
+        info!("AVG ERROR: {}", fmt_iter!(avg_err, " ", "{:^12}"));
         Ok(())
     }
 }
