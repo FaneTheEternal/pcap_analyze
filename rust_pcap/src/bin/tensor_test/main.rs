@@ -70,24 +70,24 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
             let before = offset + c.total;
             let target = out_target.get(offset..before).unwrap();
             offset = before;
-            let target_len = target.len() as f32;
-            (c, [
-                target.iter().map(|&t| t[0]).sum::<f32>() / target_len,
-                target.iter().map(|&t| t[1]).sum::<f32>() / target_len,
-                target.iter().map(|&t| t[2]).sum::<f32>() / target_len,
-                target.iter().map(|&t| t[3]).sum::<f32>() / target_len,
-            ])
+            // let target_len = target.len() as f32;
+            // (c, [
+            //     target.iter().map(|&t| t[0]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[1]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[2]).sum::<f32>() / target_len,
+            //     target.iter().map(|&t| t[3]).sum::<f32>() / target_len,
+            // ])
 
-            // let target = target.into_iter()
-            //     .fold([0.0; 4], |acc, &r| {
-            //         [
-            //             (acc[0] as u8 & r[0] as u8) as f32,
-            //             (acc[1] as u8 & r[1] as u8) as f32,
-            //             (acc[2] as u8 & r[2] as u8) as f32,
-            //             (acc[3] as u8 & r[3] as u8) as f32,
-            //         ]
-            //     });
-            // (c, target)
+            let target = target.into_iter()
+                .fold([0.0; 4], |acc, &r| {
+                    [
+                        (acc[0] as u8 | r[0] as u8) as f32,
+                        (acc[1] as u8 | r[1] as u8) as f32,
+                        (acc[2] as u8 | r[2] as u8) as f32,
+                        (acc[3] as u8 | r[3] as u8) as f32,
+                    ]
+                });
+            (c, target)
         })
         .collect()
 }
