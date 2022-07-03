@@ -1,12 +1,13 @@
 use std::fs::File;
 
-use pcap_parser::{LegacyPcapReader, PcapBlockOwned, PcapError, Block, PcapNGReader};
+use pcap_parser::{LegacyPcapReader, PcapBlockOwned, PcapError, Block, PcapNGReader, Linktype};
 use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 
 use crate::Frame;
 
 pub struct Pcap {
     reader: LegacyPcapReader<File>,
+    link_type: Linktype,
 }
 
 impl Pcap {
@@ -15,6 +16,7 @@ impl Pcap {
             .expect("LegacyPcapReader");
         Self {
             reader,
+            link_type: Linktype::NULL,
         }
     }
 }
@@ -29,10 +31,11 @@ impl Iterator for Pcap {
                 Ok((offset, block)) => {
                     match block {
                         PcapBlockOwned::LegacyHeader(hdr) => {
-                            println!("{hdr:?}")
+                            println!("{hdr:?}");
+                            self.link_type = hdr.network;
                         }
                         PcapBlockOwned::Legacy(b) => {
-                            item = Some(Frame::from_legacy(&b));
+                            item = Some(Frame::from_legacy(&b, self.link_type));
                         }
                         PcapBlockOwned::NG(_) => unreachable!(),
                     }
@@ -53,6 +56,9 @@ impl Iterator for Pcap {
 pub struct PcapNG {
     reader: PcapNGReader<File>,
     if_linktypes: Vec<pcap_parser::Linktype>,
+
+    if_tsresol: u8,
+    if_tsoffset: u64,
 }
 
 impl PcapNG {
@@ -62,6 +68,8 @@ impl PcapNG {
         Self {
             reader,
             if_linktypes: vec![],
+            if_tsresol: 0,
+            if_tsoffset: 0,
         }
     }
 }
@@ -81,28 +89,31 @@ impl Iterator for PcapNG {
                         }
                         PcapBlockOwned::NG(Block::InterfaceDescription(ref idb)) => {
                             self.if_linktypes.push(idb.linktype);
+                            self.if_tsoffset = idb.if_tsoffset;
+                            self.if_tsresol = idb.if_tsresol;
                         }
                         PcapBlockOwned::NG(Block::EnhancedPacket(ref epb)) => {
                             assert!((epb.if_id as usize) < self.if_linktypes.len());
-                            // let linktype = self.if_linktypes[epb.if_id as usize];
+                            let linktype = self.if_linktypes[epb.if_id as usize];
                             // let res = pcap_parser::data::get_packetdata(epb.data, linktype, epb.caplen as usize);
 
-                            item = Some(Frame::new(
-                                epb.packet_data(),
-                                epb.ts_low, epb.ts_high,
-                                epb.caplen, epb.orig_len(),
+                            item = Some(Frame::from_enhanced(
+                                epb, linktype,
+                                self.if_tsoffset, self.if_tsresol,
                             ));
                         }
                         PcapBlockOwned::NG(Block::SimplePacket(ref spb)) => {
                             assert!(self.if_linktypes.len() > 0);
-                            // let linktype = self.if_linktypes[0];
+                            let linktype = self.if_linktypes[0];
                             // let blen = (spb.block_len1 - 16) as usize;
                             // let res = pcap_parser::data::get_packetdata(spb.data, linktype, blen);
 
                             item = Some(Frame::new(
                                 spb.packet_data(),
-                                0, 0,
-                                0, spb.orig_len(),
+                                0.0,
+                                0,
+                                spb.orig_len(),
+                                linktype,
                             ));
                         }
                         PcapBlockOwned::NG(_) => {

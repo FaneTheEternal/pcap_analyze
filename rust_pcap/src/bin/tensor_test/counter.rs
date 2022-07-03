@@ -50,7 +50,7 @@ pub struct Count {
 }
 
 impl Count {
-    fn _compute_avg(&mut self, sizes: &Vec<usize>, intervals: &Vec<u32>) {
+    fn _compute_avg(&mut self, sizes: &Vec<usize>, intervals: &Vec<f64>) {
         let pkt_count = sizes.len();
 
         self.bytes = sizes.iter().sum();
@@ -59,7 +59,7 @@ impl Count {
             .map(|&s| (self.avg_size - s as f32).abs())
             .sum::<f32>() / pkt_count as f32;
 
-        self.avg_time = intervals.iter().sum::<u32>() as f32
+        self.avg_time = intervals.iter().sum::<f64>() as f32
             / intervals.len() as f32;
         self.avg_deltas_time = intervals.iter()
             .map(|&t| (self.avg_time - t as f32).abs())
@@ -94,10 +94,10 @@ impl Count {
             count.total += 1;
 
             if let Some(time) = last {
-                intervals.push(frame.ts_sec - time)
+                intervals.push(frame.ts - time)
             } else {
-                start = Some(frame.ts_sec);
-                last = Some(frame.ts_sec);
+                start = Some(frame.ts);
+                last = Some(frame.ts);
             }
 
             sizes.push(frame.data.len());
@@ -142,7 +142,7 @@ impl Count {
                 count.dhcp += 1;
             }
 
-            if frame.ts_sec - start.unwrap() > 2 {
+            if frame.ts - start.unwrap() > 2.0 {
                 count._compute_avg(&sizes, &intervals);
                 counts.push(std::mem::replace(&mut count, Self::default()));
 
