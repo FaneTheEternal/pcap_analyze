@@ -24,6 +24,8 @@ impl Frame {
         let mut layers = Layers::default();
         match link_type {
             Linktype::ETHERNET => layers.insert(Ethernet::new(data)),
+            Linktype::IPV4 => layers.insert(IPv4::new(data)),
+            Linktype::IPV6 => layers.insert(IPv6::new(data)),
             _ => {}
         }
         Frame { ts, caplen, origlen, data: data.to_vec(), layers }
