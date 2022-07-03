@@ -4,20 +4,28 @@ import random
 import time
 import logging
 
+# qualify paths
+from scapy.layers.dhcp import DHCP
+from scapy.layers.http import HTTP
+from scapy.layers.inet import IP, ICMP, TCP, UDP
+from scapy.layers.l2 import ARP, Ether
+
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# conf.verb = 0
-ips = ["192.168.16.1", "192.168.16.11"]
-not_ips = ["192.168.16.12", "192.168.16.128"]
+TIME = 60 * 60 * 6
+
+conf.verb = 0
+ips = ["192.168.16.1", "172.21.19.208"]
+not_ips = ["192.168.16.12", "172.21.31.242"]
 
 pkts = []
 
 tick = time.time()
 tack = tick
 with open('out.txt', 'w') as fout:  # file name
-    while tack - tick < 60 * 60:  # interval in sec
-        logger.info(f'{tack - tick} / {60 * 60}')
+    while tack - tick < TIME:  # interval in sec
+        logger.info(f'{tack - tick} / {TIME}')
         logger.info(f'TOTAL: {len(pkts)}')
 
         mNORM = 0b0000
@@ -52,7 +60,7 @@ with open('out.txt', 'w') as fout:  # file name
                 pkts.append(reply)
             else:
                 # print('not answer')
-                t += mUNREACH
+                t &= mUNREACH
 
             fout.write("%d\n" % t)
             pause = random.random() * 5 if t & mDELAY else 1
