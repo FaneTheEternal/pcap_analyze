@@ -5,15 +5,6 @@ use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 
 use crate::Frame;
 
-pub fn iter_over_pcap(file: File, mut fun: impl FnMut(Frame) -> bool) {
-    let pcap = Pcap::new(file);
-    for frame in pcap {
-        if fun(frame) {
-            break;
-        }
-    }
-}
-
 pub struct Pcap {
     reader: LegacyPcapReader<File>,
 }
@@ -56,13 +47,6 @@ impl Iterator for Pcap {
             }
         }
         item
-    }
-}
-
-pub fn iter_over_pcapng(file: File, mut fun: impl FnMut(Frame) -> bool) {
-    let pcapng = PcapNG::new(file);
-    for frame in pcapng {
-        if fun(frame) { break; }
     }
 }
 
