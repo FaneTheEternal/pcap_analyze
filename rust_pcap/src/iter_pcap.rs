@@ -6,29 +6,10 @@ use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use crate::Frame;
 
 pub fn iter_over_pcap(file: File, mut fun: impl FnMut(Frame) -> bool) {
-    let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
-    loop {
-        match reader.next() {
-            Ok((offset, block)) => {
-                match block {
-                    PcapBlockOwned::LegacyHeader(hdr) => {
-                        println!("{hdr:?}")
-                    }
-                    PcapBlockOwned::Legacy(b) => {
-                        let frame = Frame::from_legacy(&b);
-                        if fun(frame) {
-                            break;
-                        }
-                    }
-                    PcapBlockOwned::NG(_) => unreachable!(),
-                }
-                reader.consume(offset);
-            }
-            Err(PcapError::Eof) => break,
-            Err(PcapError::Incomplete) => {
-                reader.refill().unwrap();
-            }
-            Err(e) => panic!("error while reading: {:?}", e),
+    let pcap = Pcap::new(file);
+    for frame in pcap {
+        if fun(frame) {
+            break;
         }
     }
 }
