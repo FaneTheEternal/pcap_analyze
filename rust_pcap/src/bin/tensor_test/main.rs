@@ -63,7 +63,7 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
         ])
         .collect::<Vec<_>>();
 
-    let out = File::open("out.cap").unwrap();
+    let out = File::open("out.pcap").unwrap();
     let out = Count::compute_legacy(out);
 
     let mut offset = 0usize;
@@ -179,14 +179,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let train_data = data.get(..split).unwrap();
     let eval_data = data.get(split..).unwrap();
 
-    let model = GenericNeuralNetwork::new(
-        &[4],
-        1_000,
-        100,
-        Box::new(AdadeltaOptimizer::new()),
+    let mut results = Vec::new();
+
+    let word = WORD::new((2..=9).collect(), 3);
+
+    for h in word {
+        let h = h.into_iter()
+            .map(|e| 2u64.pow(e))
+            .collect::<Vec<_>>();
+        let model = GenericNeuralNetwork::new(
+            &h,
+            10_000,
+            100,
+            Box::new(AdadeltaOptimizer::new()),
+        );
+        q_del(model.model_path())?;
+        let errors = model.train(&train_data)?;
+        let error = errors.last().unwrap().clone();
+        let check = model.check(&eval_data)?;
+        results.push((model.name(), error, check));
+    }
+    let mut results = results.into_iter()
+        .map(|(n, e, c)| {
+            let e = e.map(|e| e.to_string());
+            let c = c.map(|e| e.to_string());
+            [n].into_iter().chain(e).chain(c).collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    results.insert(
+        0,
+        vec!["Model",
+             "error squared 1", "error squared 2", "error squared 3", "error squared 4",
+             "check error 1", "check error 1", "check error 1", "check error 1"]
+            .into_iter().map(|e| e.to_string()).collect(),
     );
-    q_del(model.model_path())?;
-    model.train(&train_data)?;
-    model.check(&eval_data)?;
+    csv::csv_write_file("3.csv", results)?;
     Ok(())
 }

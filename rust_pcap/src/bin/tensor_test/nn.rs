@@ -345,7 +345,7 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
     pub fn check(
         &self,
         data: &[([f32; I], [f32; O])],
-    ) -> Result<(), Box<dyn Error>>
+    ) -> Result<[f32; O], Box<dyn Error>>
     {
         let span = span!(Level::INFO, "CHECK", "{}", self.name());
         let _enter = span.enter();
@@ -399,6 +399,6 @@ impl<const I: usize, const O: usize> GenericNeuralNetwork<I, O> {
             .map(|e| e / count)
             .collect::<Vec<f32>>();
         info!("AVG ERROR: {}", fmt_iter!(avg_err, " ", "{:^12}"));
-        Ok(())
+        Ok(avg_err.try_into().unwrap())
     }
 }
