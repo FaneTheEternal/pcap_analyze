@@ -24,20 +24,19 @@ impl Iterator for WORD {
     type Item = Vec<_TYPE>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut state = self._state.take()
-            .or_else(|| {
-                Some(vec![Digit::new(self.alph.clone()); self.len])
-            })
-            .unwrap();
+        let state = if let Some(mut state) = self._state.take() {
+            let mut add = 1;
+            for i in 0..self.len {
+                add = state[i].inc(add);
+            }
 
-        let mut add = 1;
-        for i in 0..self.len {
-            add = state[i].inc(add);
-        }
-
-        if add > 0 {
-            return None;
-        }
+            if add > 0 {
+                return None;
+            }
+            state
+        } else {
+            vec![Digit::new(self.alph.clone()); self.len]
+        };
 
         self._state.replace(state.clone());
         Some(state.into_iter().map(|e| e.value).collect())
