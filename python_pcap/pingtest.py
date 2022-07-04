@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 TIME = 60 * 60 * 6
 
 conf.verb = 0
-ips = ["192.168.16.1", "172.21.19.208"]
-not_ips = ["192.168.16.12", "172.21.31.242"]
+ips = ["192.168.16.1", "192.168.72.129"]
+not_ips = ["192.168.16.12", "192.168.72.128"]
 
 pkts = []
 
@@ -28,16 +28,16 @@ with open('out.txt', 'w') as fout:  # file name
         logger.info(f'{tack - tick} / {TIME}')
         logger.info(f'TOTAL: {len(pkts)}')
 
-        mNORM = 0b0000
-        mDELAY = 0b0100
-        mUNREACH = 0b1000
-        mPAYLOAD = 0b0010
-        mRANGE = 0b0001
+        NORM = 0b0000
+        DELAY = 0b0100
+        UNREACH = 0b1000
+        PAYLOAD = 0b0010
+        RANGE = 0b0001
 
         t = random.randint(1, 7) if random.random() > 0.5 else 0
         # print(t)
 
-        if t & mRANGE != 0:
+        if t & RANGE != 0:
             ip = not_ips[random.randrange(0, len(not_ips))]
         else:
             ip = ips[random.randrange(0, len(ips))]
@@ -46,7 +46,7 @@ with open('out.txt', 'w') as fout:  # file name
         for i in range(random.randint(1, 10)):
             # print('send to:', packet.dst)
 
-            if t & mPAYLOAD:
+            if t & PAYLOAD:
                 ping = packet / random.randbytes(random.randint(64, 65000))
                 # print('payload=', len(ping))
             else:
@@ -55,17 +55,22 @@ with open('out.txt', 'w') as fout:  # file name
             pkts.append(ping)
             reply = sr1(ping, timeout=1)  # timeout
 
-            if (reply is not None):
+            if reply is not None:
                 # print(reply.dst, 'is online')
-                pkts.append(reply)
+                t &= ~UNREACH
             else:
                 # print('not answer')
-                t &= mUNREACH
+                t |= UNREACH
 
-            fout.write("%d\n" % t)
-            pause = random.random() * 5 if t & mDELAY else 1
+            fout.write(f'{t}\n')
+            if reply is not None:
+                fout.write(f'{0}\n')
+                pkts.append(reply)
+
+            pause = random.random() * 5 if t & DELAY else 1
+
             # print('pause:', pause)
             time.sleep(pause)
 
         tack = time.time()
-    wrpcap("out.cap", pkts)
+    wrpcap("out.pcap", pkts)
