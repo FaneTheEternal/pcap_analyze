@@ -2,6 +2,7 @@ mod nn;
 mod counter;
 mod profile;
 mod csv;
+mod combo;
 
 use std::collections::HashSet;
 use std::env;
@@ -15,6 +16,7 @@ use std::time::Instant;
 use rand::prelude::*;
 use tensorflow::train::AdadeltaOptimizer;
 use rust_pcap::*;
+use crate::combo::WORD;
 
 use crate::counter::Count;
 use crate::nn::{eval, train, gtrain, GenericNeuralNetwork};
