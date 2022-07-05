@@ -20,7 +20,7 @@ use crate::combo::WORD;
 
 use crate::counter::Count;
 use crate::nn::{eval, train, gtrain, GenericNeuralNetwork};
-use crate::profile::LearnInstance;
+use crate::profile::*;
 
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();
@@ -183,6 +183,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let word = WORD::new((2..=9).collect(), 3);
 
+    let mut state = State::get();
+    if !state.is_done("Model".into()) {
+        state.append(
+            vec!["Model",
+                 "error squared 1", "error squared 2", "error squared 3", "error squared 4",
+                 "check error 1", "check error 1", "check error 1", "check error 1"]
+        )?;
+    }
+
     for h in word {
         let h = h.into_iter()
             .map(|e| 2u64.pow(e))
@@ -193,26 +202,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             100,
             Box::new(AdadeltaOptimizer::new()),
         );
+        if state.is_done(model.name()) {
+            continue;
+        }
         q_del(model.model_path())?;
         let errors = model.train(&train_data)?;
         let error = errors.last().unwrap().clone();
         let check = model.check(&eval_data)?;
+        let row = [model.name()].into_iter()
+            .chain(error.into_iter().map(|e| e.to_string()))
+            .chain(check.into_iter().map(|e| e.to_string()))
+            .collect::<Vec<_>>();
+        state.append(row)?;
         results.push((model.name(), error, check));
     }
-    let mut results = results.into_iter()
-        .map(|(n, e, c)| {
-            let e = e.map(|e| e.to_string());
-            let c = c.map(|e| e.to_string());
-            [n].into_iter().chain(e).chain(c).collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    results.insert(
-        0,
-        vec!["Model",
-             "error squared 1", "error squared 2", "error squared 3", "error squared 4",
-             "check error 1", "check error 1", "check error 1", "check error 1"]
-            .into_iter().map(|e| e.to_string()).collect(),
-    );
-    csv::csv_write_file("3.csv", results)?;
+    csv::csv_write_file("3.csv", state)?;
     Ok(())
 }
