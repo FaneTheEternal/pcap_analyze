@@ -27,7 +27,7 @@ impl State {
         let mut file = std::fs::File::options()
             .create(true).truncate(true).write(true)
             .open(Self::FILE)?;
-        file.write(ron::to_string(self)?.as_bytes())?;
+        file.write(ron::ser::to_string_pretty(self, Default::default())?.as_bytes())?;
         Ok(())
     }
 
