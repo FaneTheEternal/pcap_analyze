@@ -179,8 +179,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let train_data = data.get(..split).unwrap();
     let eval_data = data.get(split..).unwrap();
 
-    let mut results = Vec::new();
-
     let word = WORD::new((2..=9).collect(), 3);
 
     let mut state = State::get();
@@ -196,7 +194,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let h = h.into_iter()
             .map(|e| 2u64.pow(e))
             .collect::<Vec<_>>();
-        let model = GenericNeuralNetwork::new(
+        let mut model = GenericNeuralNetwork::new(
             &h,
             10_000,
             100,
@@ -205,16 +203,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         if state.is_done(model.name()) {
             continue;
         }
-        q_del(model.model_path())?;
-        let errors = model.train(&train_data)?;
-        let error = errors.last().unwrap().clone();
-        let check = model.check(&eval_data)?;
-        let row = [model.name()].into_iter()
-            .chain(error.into_iter().map(|e| e.to_string()))
-            .chain(check.into_iter().map(|e| e.to_string()))
+        const CONTROL: usize = 3;
+        let mut avg = Vec::new();
+        for _ in 0..CONTROL {
+            q_del(model.model_path())?;
+            let errors = model.train(&train_data)?;
+            let error = errors.into_iter().last().unwrap();
+            let check = model.check(&eval_data)?;
+            avg.push(error.into_iter().chain(check).collect::<Vec<_>>())
+        }
+        let mut row = avg.into_iter()
+            .fold(vec![0f32; 8], |acc, e| {
+                acc.into_iter().zip(e)
+                    .map(|(a, e)| a + e)
+                    .collect::<Vec<_>>()
+            })
+            .into_iter()
+            .map(|e| (e / CONTROL as f32).to_string())
             .collect::<Vec<_>>();
+        row.insert(0, model.name());
         state.append(row)?;
-        results.push((model.name(), error, check));
     }
     csv::csv_write_file("3.csv", state)?;
     Ok(())
