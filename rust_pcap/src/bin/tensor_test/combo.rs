@@ -3,6 +3,7 @@ use std::ops::Index;
 
 pub type _TYPE = u32;
 
+#[derive(Clone)]
 pub struct WORD {
     alph: Vec<_TYPE>,
     len: usize,

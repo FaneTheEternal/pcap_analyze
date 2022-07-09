@@ -11,13 +11,19 @@ use pcap_parser::*;
 use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
+use std::ops::AddAssign;
 use std::path::Path;
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicUsize;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use rand::prelude::*;
 use tensorflow::train::AdadeltaOptimizer;
 use rust_pcap::*;
-use crate::combo::WORD;
+use rayon::prelude::*;
+use tracing::{error, info};
 
+use crate::combo::WORD;
 use crate::counter::Count;
 use crate::nn::{eval, train, gtrain, GenericNeuralNetwork};
 use crate::profile::*;
@@ -106,6 +112,19 @@ fn q_del<P: AsRef<Path>>(path: P) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+trait FixBoxError<T> {
+    fn fix_box(self) -> Result<T, Box<dyn Error + Send + Sync>>;
+}
+
+impl<T> FixBoxError<T> for Result<T, Box<dyn Error>> {
+    fn fix_box(self) -> Result<T, Box<dyn Error + Send + Sync>> {
+        match self {
+            Err(err) => Err(err.to_string().into()),
+            Ok(t) => Ok(t),
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let format = tracing_subscriber::fmt::format()
         .with_target(false);
@@ -190,26 +209,31 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?;
     }
 
-    for h in word {
-        let h = h.into_iter()
-            .map(|e| 2u64.pow(e))
-            .collect::<Vec<_>>();
+    rayon::ThreadPoolBuilder::new().num_threads(4).build_global()?;
+    let mut state = Arc::new(Mutex::new(state));
+    let configs = word.into_iter()
+        .map(|w| {
+            w.into_iter().map(|e| 2u64.pow(e)).collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let g_result: Vec<Result<(), Box<dyn Error + Send + Sync>>> = configs.into_par_iter().map(|h| {
         let mut model = GenericNeuralNetwork::new(
             &h,
             10_000,
             100,
             Box::new(AdadeltaOptimizer::new()),
         );
-        if state.is_done(model.name()) {
-            continue;
+        if state.lock().unwrap().is_done(model.name()) {
+            return Ok(());
         }
         const CONTROL: usize = 3;
         let mut avg = Vec::new();
         for _ in 0..CONTROL {
-            q_del(model.model_path())?;
-            let errors = model.train(&train_data)?;
+            q_del(model.model_path()).fix_box()?;
+            let errors = model.train(&train_data).fix_box()?;
             let error = errors.into_iter().last().unwrap();
-            let check = model.check(&eval_data)?;
+            let check = model.check(&eval_data).fix_box()?;
             avg.push(error.into_iter().chain(check).collect::<Vec<_>>())
         }
         let mut row = avg.into_iter()
@@ -222,8 +246,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             .map(|e| (e / CONTROL as f32).to_string())
             .collect::<Vec<_>>();
         row.insert(0, model.name());
-        state.append(row)?;
+        state.lock().unwrap().append(row).fix_box()?;
+        Ok(())
+    }).collect::<Vec<_>>();
+
+    let g_result = g_result.into_iter()
+        .filter_map(|r| {
+            match r {
+                Ok(_) => { None }
+                Err(e) => { Some(e) }
+            }
+        })
+        .collect::<Vec<_>>();
+    if g_result.is_empty() {
+        let state = Arc::try_unwrap(state).unwrap();
+        csv::csv_write_file("3.csv", state.into_inner().unwrap())?;
+    } else {
+        for e in g_result {
+            error!("{}", e);
+        }
     }
-    csv::csv_write_file("3.csv", state)?;
+
     Ok(())
 }
