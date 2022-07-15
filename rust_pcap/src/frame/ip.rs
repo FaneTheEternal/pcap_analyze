@@ -3,14 +3,14 @@ use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
 use crate::frame::icmp::ICMP;
 
-#[derive(Layer)]
+#[derive(Layer, Debug)]
 pub struct IPFlags {
     pub null: bool,
     pub df: bool,
     pub mf: bool,
 }
 
-#[derive(Layer)]
+#[derive(Layer, Debug)]
 pub struct IPv4 {
     // offset: 0
     pub ihl: u8,

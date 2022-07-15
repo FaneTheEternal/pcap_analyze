@@ -62,6 +62,6 @@ impl HasLayers for Frame {
         &self.layers
     }
     fn get_layer_descendants<T>(&self) -> Option<&T> where T: Layer {
-        get_layer_descendants!(self, T, Ethernet)
+        get_layer_descendants!(self, T, Ethernet, IPv4)
     }
 }
