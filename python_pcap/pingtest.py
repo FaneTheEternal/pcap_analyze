@@ -44,6 +44,7 @@ with open('out.txt', 'w') as fout:  # file name
 
         packet = IP(dst=ip) / ICMP()
         for i in range(random.randint(1, 10)):
+            packet.time = time.time()
             # print('send to:', packet.dst)
 
             if t & PAYLOAD:
