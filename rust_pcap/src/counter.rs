@@ -51,7 +51,7 @@ pub struct Count {
 }
 
 impl Count {
-    fn _compute_avg(mut self, sizes: &Vec<usize>, intervals: &Vec<f64>) -> Self {
+    fn flush(&mut self, sizes: &mut Vec<usize>, intervals: &mut Vec<f64>) -> Self {
         let pkt_count = sizes.len();
 
         self.bytes = sizes.iter().sum();
@@ -65,25 +65,73 @@ impl Count {
         self.avg_deltas_time = intervals.iter()
             .map(|&t| (self.avg_time - t as f32).abs())
             .sum::<f32>() / intervals.len() as f32;
-        self
+        sizes.clear();
+        intervals.clear();
+        std::mem::replace(self, Count::default())
     }
 
-    pub fn compute(file: File) -> Vec<Count> {
-        Self::_compute(PcapNG::new(file))
+    fn apply(&mut self, frame: Frame) {
+        self.total += 1;
+        if let Some(ip) = frame.get_layer::<IPv4>() {
+            self.ip += 1;
+            if ip.flags.null { self.ip_flags.null += 1 }
+            if ip.flags.df { self.ip_flags.df += 1 }
+            if ip.flags.mf { self.ip_flags.mf += 1 }
+            self.addresses.insert(ip.src);
+            self.addresses.insert(ip.dst);
+        }
+        if let Some(_icmp) = frame.get_layer::<ICMP>() {
+            self.icmp += 1;
+        }
+        if let Some(tcp) = frame.get_layer::<TCP>() {
+            self.tcp += 1;
+            if tcp.flags.ns { self.tcp_flags.ns += 1 }
+            if tcp.flags.cwr { self.tcp_flags.cwr += 1 }
+            if tcp.flags.ece { self.tcp_flags.ece += 1 }
+            if tcp.flags.urg { self.tcp_flags.urg += 1 }
+            if tcp.flags.ack { self.tcp_flags.ack += 1 }
+            if tcp.flags.psh { self.tcp_flags.psh += 1 }
+            if tcp.flags.rst { self.tcp_flags.rst += 1 }
+            if tcp.flags.syn { self.tcp_flags.syn += 1 }
+            if tcp.flags.fin { self.tcp_flags.fin += 1 }
+            self.ports.insert(tcp.src);
+            self.ports.insert(tcp.dst);
+            self.data_bytes += tcp.data.len();
+        }
+        if let Some(udp) = frame.get_layer::<UDP>() {
+            self.udp += 1;
+            self.data_bytes += udp.payload.len();
+        }
+        if let Some(_arp) = frame.get_layer::<ARP>() {
+            self.arp += 1;
+        }
+        if let Some(_http) = frame.get_layer::<HTTP>() {
+            self.http += 1;
+        }
+        if let Some(_dhcp) = frame.get_layer::<DHCP>() {
+            self.dhcp += 1;
+        }
     }
 
-    pub fn compute_legacy(file: File) -> Vec<Count> {
-        Self::_compute(Pcap::new(file))
+    pub fn compute(file: File, period: f64) -> Vec<Count> {
+        Self::_compute(PcapNG::new(file), period)
     }
 
-    pub fn _compute(pcap: impl Iterator<Item=Frame>) -> Vec<Count> {
+    pub fn compute_legacy(file: File, period: f64) -> Vec<Count> {
+        Self::_compute(Pcap::new(file), period)
+    }
+
+    pub fn _compute(pcap: impl Iterator<Item=Frame>, period: f64) -> Vec<Count> {
         let mut counter = 0usize;
 
         let mut counts = Vec::new();
 
-        let mut count = Self::default();
+        let mut count = Count::default();
 
         let mut sizes = Vec::new();
+
+        let mut _first = None;
+        let mut _last = None;
 
         let mut start = None;
         let mut last = None;
@@ -91,74 +139,39 @@ impl Count {
         let mut intervals = Vec::new();
 
         for frame in pcap {
+            _first.get_or_insert(frame.ts);
+            _last = Some(frame.ts);
             counter += 1;
 
-            count.total += 1;
-
-            if let Some(time) = last {
-                intervals.push(frame.ts - time);
-                last = Some(frame.ts);
-            } else {
+            if start.is_none() {
                 start = Some(frame.ts);
-                last = Some(frame.ts);
+            } else {
+                let mut diff = frame.ts - start.unwrap();
+                if diff > period {
+                    counts.push(count.flush(&mut sizes, &mut intervals));
+                    diff -= period;
+                    while diff > period {
+                        diff -= period;
+                        counts.push(Count::default());
+                    }
+                    start = Some(frame.ts - diff);
+                    last = None;
+                }
             }
-
+            if let Some(last) = last {
+                dbg!(frame.ts - last);
+                intervals.push(frame.ts - last);
+            }
+            last = Some(frame.ts);
             sizes.push(frame.data.len());
-
-            if let Some(ip) = frame.get_layer::<IPv4>() {
-                count.ip += 1;
-                if ip.flags.null { count.ip_flags.null += 1 }
-                if ip.flags.df { count.ip_flags.df += 1 }
-                if ip.flags.mf { count.ip_flags.mf += 1 }
-                count.addresses.insert(ip.src);
-                count.addresses.insert(ip.dst);
-            }
-            if let Some(_icmp) = frame.get_layer::<ICMP>() {
-                count.icmp += 1;
-            }
-            if let Some(tcp) = frame.get_layer::<TCP>() {
-                count.tcp += 1;
-                if tcp.flags.ns { count.tcp_flags.ns += 1 }
-                if tcp.flags.cwr { count.tcp_flags.cwr += 1 }
-                if tcp.flags.ece { count.tcp_flags.ece += 1 }
-                if tcp.flags.urg { count.tcp_flags.urg += 1 }
-                if tcp.flags.ack { count.tcp_flags.ack += 1 }
-                if tcp.flags.psh { count.tcp_flags.psh += 1 }
-                if tcp.flags.rst { count.tcp_flags.rst += 1 }
-                if tcp.flags.syn { count.tcp_flags.syn += 1 }
-                if tcp.flags.fin { count.tcp_flags.fin += 1 }
-                count.ports.insert(tcp.src);
-                count.ports.insert(tcp.dst);
-                count.data_bytes += tcp.data.len();
-            }
-            if let Some(udp) = frame.get_layer::<UDP>() {
-                count.udp += 1;
-                count.data_bytes += udp.payload.len();
-            }
-            if let Some(_arp) = frame.get_layer::<ARP>() {
-                count.arp += 1;
-            }
-            if let Some(_http) = frame.get_layer::<HTTP>() {
-                count.http += 1;
-            }
-            if let Some(_dhcp) = frame.get_layer::<DHCP>() {
-                count.dhcp += 1;
-            }
-
-            if frame.ts - start.unwrap() > 2.0 {
-                counts.push(count._compute_avg(&sizes, &intervals));
-                count = default();
-
-                start = None;
-                last = None;
-                intervals.clear();
-                sizes.clear();
-            }
+            count.apply(frame);
         }
 
         if !intervals.is_empty() {
-            counts.push(count._compute_avg(&sizes, &intervals));
+            counts.push(count.flush(&mut sizes, &mut intervals));
         }
+        // println!("COUNTS EXPECT TOTAL PERIOD {}", _last.unwrap() - _first.unwrap());
+        // println!("COUNTS COMPUTE TOTAL PERIOD {}", counts.len() * period as usize);
         println!("COUNTS APPLY {} FRAMES", counter);
         counts
     }

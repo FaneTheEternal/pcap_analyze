@@ -6,6 +6,8 @@ use rand::prelude::*;
 
 use rust_pcap::counter::Count;
 
+const PERIOD: f64 = 2.0;
+
 fn main() -> Result<(), Box<dyn Error>> {
     const DELAY: u8 = 0b0100;
     const UNREACHABLE: u8 = 0b1000;
@@ -28,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<_>>();
 
     let out = File::open("out.pcap").unwrap();
-    let out = Count::compute_legacy(out);
+    let out = Count::compute_legacy(out, PERIOD);
 
     let mut offset = 0usize;
     let mut data_set = out.into_iter()
