@@ -51,7 +51,7 @@ pub struct Count {
 }
 
 impl Count {
-    fn flush(&mut self, sizes: &mut Vec<usize>, intervals: &mut Vec<f64>) -> Self {
+    pub fn flush(&mut self, sizes: &mut Vec<usize>, intervals: &mut Vec<f64>) -> Self {
         let pkt_count = sizes.len();
 
         self.bytes = sizes.iter().sum();
@@ -70,7 +70,7 @@ impl Count {
         std::mem::replace(self, Count::default())
     }
 
-    fn apply(&mut self, frame: Frame) {
+    pub fn apply(&mut self, frame: Frame) {
         self.total += 1;
         if let Some(ip) = frame.get_layer::<IPv4>() {
             self.ip += 1;
