@@ -1,13 +1,15 @@
 use std::error::Error;
 use std::path::Path;
+
 use tensorflow::{
-    ops,
-    train::{AdadeltaOptimizer, MinimizeOptions, Optimizer},
-    Code,
     DataType,
     Graph,
+    ops,
     Output,
     OutputName,
+    REGRESS_INPUTS,
+    REGRESS_METHOD_NAME,
+    REGRESS_OUTPUTS,
     SavedModelBundle,
     Scope,
     Session,
@@ -17,11 +19,9 @@ use tensorflow::{
     SignatureDef,
     Status,
     Tensor,
-    TensorInfo,
-    Variable,
-    REGRESS_INPUTS, REGRESS_METHOD_NAME, REGRESS_OUTPUTS,
+    TensorInfo, train::{AdadeltaOptimizer, MinimizeOptions, Optimizer}, Variable,
 };
-use tracing::{info, Level, span, trace};
+use tracing::{info, Level, span};
 
 // Helper for building a layer.
 //

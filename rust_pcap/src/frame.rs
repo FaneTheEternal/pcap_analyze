@@ -1,7 +1,9 @@
 use pcap_parser::{EnhancedPacketBlock, LegacyPcapBlock, Linktype};
 use pcap_parser::traits::PcapNGPacketBlock;
-use crate::*;
+
 use ethernet::Ethernet;
+
+use crate::*;
 
 pub mod arp;
 pub mod dhcp;
@@ -41,7 +43,8 @@ impl Frame {
     }
 
     pub fn from_legacy(block: &LegacyPcapBlock, link_type: Linktype) -> Frame {
-        Self::new(block.data, block.ts_sec as f64, block.caplen, block.origlen, link_type)
+        let ts = block.ts_sec as f64 + block.ts_usec as f64 * 0.000001;
+        Self::new(block.data, ts, block.caplen, block.origlen, link_type)
     }
 
     pub fn from_enhanced(block: &EnhancedPacketBlock, link_type: Linktype, ts_offset: u64, resolution: u8) -> Frame {

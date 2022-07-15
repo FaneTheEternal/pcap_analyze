@@ -1,7 +1,5 @@
 use std::error::Error;
-use std::fs::File;
 use std::path::Path;
-use std::vec::IntoIter;
 
 pub fn save<const I: usize, const O: usize>(
     data: &[([f32; I], [f32; O])],

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
+
 use crate::*;
 
 #[derive(Default)]
@@ -50,7 +51,7 @@ pub struct Count {
 }
 
 impl Count {
-    fn _compute_avg(&mut self, sizes: &Vec<usize>, intervals: &Vec<f64>) {
+    fn _compute_avg(mut self, sizes: &Vec<usize>, intervals: &Vec<f64>) -> Self {
         let pkt_count = sizes.len();
 
         self.bytes = sizes.iter().sum();
@@ -64,6 +65,7 @@ impl Count {
         self.avg_deltas_time = intervals.iter()
             .map(|&t| (self.avg_time - t as f32).abs())
             .sum::<f32>() / intervals.len() as f32;
+        self
     }
 
     pub fn compute(file: File) -> Vec<Count> {
@@ -74,7 +76,7 @@ impl Count {
         Self::_compute(Pcap::new(file))
     }
 
-    pub fn _compute(mut pcap: impl Iterator<Item=Frame>) -> Vec<Count> {
+    pub fn _compute(pcap: impl Iterator<Item=Frame>) -> Vec<Count> {
         let mut counter = 0usize;
 
         let mut counts = Vec::new();
@@ -111,7 +113,7 @@ impl Count {
                 count.addresses.insert(ip.src);
                 count.addresses.insert(ip.dst);
             }
-            if let Some(icmp) = frame.get_layer::<ICMP>() {
+            if let Some(_icmp) = frame.get_layer::<ICMP>() {
                 count.icmp += 1;
             }
             if let Some(tcp) = frame.get_layer::<TCP>() {
@@ -133,19 +135,19 @@ impl Count {
                 count.udp += 1;
                 count.data_bytes += udp.payload.len();
             }
-            if let Some(arp) = frame.get_layer::<ARP>() {
+            if let Some(_arp) = frame.get_layer::<ARP>() {
                 count.arp += 1;
             }
-            if let Some(http) = frame.get_layer::<HTTP>() {
+            if let Some(_http) = frame.get_layer::<HTTP>() {
                 count.http += 1;
             }
-            if let Some(dhcp) = frame.get_layer::<DHCP>() {
+            if let Some(_dhcp) = frame.get_layer::<DHCP>() {
                 count.dhcp += 1;
             }
 
             if frame.ts - start.unwrap() > 2.0 {
-                count._compute_avg(&sizes, &intervals);
-                counts.push(std::mem::replace(&mut count, Self::default()));
+                counts.push(count._compute_avg(&sizes, &intervals));
+                count = default();
 
                 start = None;
                 last = None;
@@ -154,9 +156,8 @@ impl Count {
             }
         }
 
-        if sizes.len() > 1 {
-            count._compute_avg(&sizes, &intervals);
-            counts.push(count);
+        if !intervals.is_empty() {
+            counts.push(count._compute_avg(&sizes, &intervals));
         }
         println!("COUNTS APPLY {} FRAMES", counter);
         counts

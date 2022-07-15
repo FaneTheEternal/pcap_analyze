@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, NetworkEndian};
+
 use crate::*;
 
 #[derive(Debug, Layer)]
@@ -222,7 +223,7 @@ impl ICMP {
                 })
             }
             41 | 253 | 254 => ICMPData::Experimental,
-            _ => ICMPData::Unknown
+            // _ => ICMPData::Unknown
         };
         ICMP {
             kind,

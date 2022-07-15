@@ -1,31 +1,28 @@
-mod nn;
-mod profile;
-mod csv;
-mod combo;
-
-use std::collections::HashSet;
-use std::env;
 use std::error::Error;
-use pcap_parser::*;
-use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::ops::AddAssign;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicUsize;
-use std::thread::sleep;
-use std::time::{Duration, Instant};
+
+use pcap_parser::*;
+use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use rand::prelude::*;
-use tensorflow::train::AdadeltaOptimizer;
-use rust_pcap::*;
 use rayon::prelude::*;
-use tracing::{error, info};
+use tensorflow::train::AdadeltaOptimizer;
+use tracing::error;
+
+use rust_pcap::*;
+use rust_pcap::counter::Count;
 
 use crate::combo::WORD;
-use rust_pcap::counter::Count;
-use crate::nn::{eval, GenericNeuralNetwork, gtrain, train};
+use crate::nn::{GenericNeuralNetwork};
 use crate::profile::*;
+
+mod nn;
+mod profile;
+mod csv;
+mod combo;
 
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();

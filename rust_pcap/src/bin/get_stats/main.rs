@@ -1,8 +1,8 @@
 use std::collections::HashSet;
-use pcap_parser::*;
-use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use std::fs::File;
-use std::time::Instant;
+
+use pcap_parser::*;
+
 use rust_pcap::*;
 
 fn main() {

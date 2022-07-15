@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use pcap_parser::{LegacyPcapReader, PcapBlockOwned, PcapError, Block, PcapNGReader, Linktype};
+use pcap_parser::{Block, LegacyPcapReader, Linktype, PcapBlockOwned, PcapError, PcapNGReader};
 use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 
 use crate::Frame;

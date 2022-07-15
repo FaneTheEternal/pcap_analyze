@@ -1,10 +1,7 @@
 use std::error::Error;
 use std::io::{Read, Write};
-use std::path::Path;
-use serde::{Serialize, Deserialize};
-use tracing_subscriber::filter::targets::IntoIter;
-use crate::gtrain;
 
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct State {

@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian};
-use crate::*;
 
+use crate::*;
 
 #[derive(Debug, Layer)]
 pub struct ARP {
