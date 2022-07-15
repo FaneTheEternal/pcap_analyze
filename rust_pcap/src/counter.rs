@@ -61,10 +61,10 @@ impl Count {
             .sum::<f32>() / pkt_count as f32;
 
         self.avg_time = intervals.iter().sum::<f64>() as f32
-            / intervals.len() as f32;
+            / intervals.len().max(1) as f32;
         self.avg_deltas_time = intervals.iter()
             .map(|&t| (self.avg_time - t as f32).abs())
-            .sum::<f32>() / intervals.len() as f32;
+            .sum::<f32>() / intervals.len().max(1) as f32;
         sizes.clear();
         intervals.clear();
         std::mem::replace(self, Count::default())
