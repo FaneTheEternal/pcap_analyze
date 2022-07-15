@@ -159,7 +159,6 @@ impl Count {
                 }
             }
             if let Some(last) = last {
-                dbg!(frame.ts - last);
                 intervals.push(frame.ts - last);
             }
             last = Some(frame.ts);
