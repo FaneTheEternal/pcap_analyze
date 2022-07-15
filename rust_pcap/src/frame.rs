@@ -1,7 +1,16 @@
 use pcap_parser::{EnhancedPacketBlock, LegacyPcapBlock, Linktype};
 use pcap_parser::traits::PcapNGPacketBlock;
 use crate::*;
-use crate::ethernet::Ethernet;
+use ethernet::Ethernet;
+
+pub mod arp;
+pub mod dhcp;
+pub mod ethernet;
+pub mod http;
+pub mod icmp;
+pub mod ip;
+pub mod tcp;
+pub mod udp;
 
 #[derive(Layer)]
 pub struct Frame {

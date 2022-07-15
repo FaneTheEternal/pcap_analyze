@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
-use crate::icmp::ICMP;
+use crate::frame::icmp::ICMP;
 
 #[derive(Layer)]
 pub struct IPFlags {
