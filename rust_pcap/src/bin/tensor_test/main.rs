@@ -24,13 +24,15 @@ mod profile;
 mod csv;
 mod combo;
 
+const PERIOD: f64 = 2.0;
+
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();
-    let normal = Count::compute(normal);
+    let normal = Count::compute(normal, PERIOD);
     let not_normal = File::open("ping_not_normal.pcapng").unwrap();
-    let not_normal = Count::compute(not_normal);
+    let not_normal = Count::compute(not_normal, PERIOD);
     let unreachable = File::open("ping_unreachable.pcapng").unwrap();
-    let unreachable = Count::compute(unreachable);
+    let unreachable = Count::compute(unreachable, PERIOD);
 
     const TRUE: f32 = 100.0;
     const FALSE: f32 = 0.0;
@@ -66,7 +68,7 @@ fn read_generated() -> Vec<(Count, [f32; 4])> {
         .collect::<Vec<_>>();
 
     let out = File::open("out.pcap").unwrap();
-    let out = Count::compute_legacy(out);
+    let out = Count::compute_legacy(out, PERIOD);
 
     let mut offset = 0usize;
     out.into_iter()
