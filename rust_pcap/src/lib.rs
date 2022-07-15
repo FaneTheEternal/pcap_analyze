@@ -6,6 +6,7 @@ use std::ptr::NonNull;
 
 mod frame;
 mod iter;
+pub mod counter;
 
 pub use frame::*;
 pub use frame::ethernet::*;

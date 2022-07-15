@@ -1,5 +1,4 @@
 mod nn;
-mod counter;
 mod profile;
 mod csv;
 mod combo;
@@ -24,8 +23,8 @@ use rayon::prelude::*;
 use tracing::{error, info};
 
 use crate::combo::WORD;
-use crate::counter::Count;
-use crate::nn::{eval, train, gtrain, GenericNeuralNetwork};
+use rust_pcap::counter::Count;
+use crate::nn::{eval, GenericNeuralNetwork, gtrain, train};
 use crate::profile::*;
 
 fn read3() -> Vec<(Count, [f32; 3])> {

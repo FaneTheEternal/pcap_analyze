@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::fs::File;
-use rust_pcap::*;
 
 #[derive(Default)]
 pub struct IPCount {
@@ -94,7 +93,8 @@ impl Count {
             count.total += 1;
 
             if let Some(time) = last {
-                intervals.push(frame.ts - time)
+                intervals.push(frame.ts - time);
+                last = Some(frame.ts);
             } else {
                 start = Some(frame.ts);
                 last = Some(frame.ts);
