@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
+use crate::*;
 
 #[derive(Default)]
 pub struct IPCount {
