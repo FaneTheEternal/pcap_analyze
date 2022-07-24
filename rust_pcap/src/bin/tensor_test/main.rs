@@ -207,7 +207,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         )?;
     }
 
-    rayon::ThreadPoolBuilder::new().num_threads(4).build_global()?;
+    rayon::ThreadPoolBuilder::new().num_threads(
+        std::env::var("NUM_THREADS").map_or(2, |s| s.parse::<usize>().unwrap())
+    ).build_global()?;
     let mut state = Arc::new(Mutex::new(state));
     let configs = word.into_iter()
         .map(|w| {
@@ -218,7 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let g_result: Vec<Result<(), Box<dyn Error + Send + Sync>>> = configs.into_par_iter().map(|h| {
         let mut model = GenericNeuralNetwork::new(
             &h,
-            10_000,
+            1_000,
             100,
             Box::new(AdadeltaOptimizer::new()),
         );
