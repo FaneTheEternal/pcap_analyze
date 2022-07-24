@@ -1,0 +1,1 @@
+cargo run --profile release-max --bin tensor_test
