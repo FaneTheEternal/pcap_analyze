@@ -4,16 +4,17 @@ use crate::*;
 
 #[derive(Debug, Layer)]
 pub struct ICMP {
-    kind: u8,
-    code: u8,
-    checksum: u16,
-    data: ICMPData,
+    pub kind: u8,
+    pub code: u8,
+    pub checksum: u16,
+    pub data: ICMPData,
 }
 
 #[derive(Debug)]
 pub enum ICMPData {
     Echo {
         id: u16,
+        kind: Echo,
         num: u16,
         data: Vec<u8>,
     },
@@ -46,6 +47,12 @@ pub enum ICMPData {
     Photuris(Photuris),
     Experimental,
     Unknown,
+}
+
+#[derive(Debug)]
+pub enum Echo {
+    Request,
+    Response,
 }
 
 #[derive(Debug)]
@@ -139,6 +146,7 @@ impl ICMP {
         let data = match kind {
             0 | 8 => ICMPData::Echo {
                 id: NetworkEndian::read_u16(data.get(4..6).unwrap()),
+                kind: if kind == 0 { Echo::Response } else { Echo::Request },
                 num: NetworkEndian::read_u16(data.get(6..8).unwrap()),
                 data: data.get(8..).unwrap().to_vec(),
             },
