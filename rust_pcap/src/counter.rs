@@ -26,6 +26,8 @@ pub struct TCPCount {
 #[derive(Default)]
 pub struct Count {
     pub total: usize,
+    pub echo_req: usize,
+    pub echo_res: usize,
 
     pub ip: usize,
     pub ip_flags: IPCount,
@@ -70,7 +72,7 @@ impl Count {
         std::mem::replace(self, Count::default())
     }
 
-    pub fn apply(&mut self, frame: Frame) {
+    pub fn apply(&mut self, frame: &Frame) {
         self.total += 1;
         if let Some(ip) = frame.get_layer::<IPv4>() {
             self.ip += 1;
@@ -80,8 +82,14 @@ impl Count {
             self.addresses.insert(ip.src);
             self.addresses.insert(ip.dst);
         }
-        if let Some(_icmp) = frame.get_layer::<ICMP>() {
+        if let Some(icmp) = frame.get_layer::<ICMP>() {
             self.icmp += 1;
+            if let ICMPData::Echo { kind, .. } = &icmp.data {
+                match kind {
+                    Echo::Request => { self.echo_req += 1 }
+                    Echo::Response => { self.echo_res += 1 }
+                }
+            }
         }
         if let Some(tcp) = frame.get_layer::<TCP>() {
             self.tcp += 1;
@@ -163,10 +171,10 @@ impl Count {
             }
             last = Some(frame.ts);
             sizes.push(frame.data.len());
-            count.apply(frame);
+            count.apply(&frame);
         }
 
-        if !intervals.is_empty() {
+        if !sizes.is_empty() {
             counts.push(count.flush(&mut sizes, &mut intervals));
         }
         // println!("COUNTS EXPECT TOTAL PERIOD {}", _last.unwrap() - _first.unwrap());
