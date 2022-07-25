@@ -140,6 +140,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(|(d, res)| {
             let row = [
                 d.total as f32,
+                d.echo_req as f32,
+                d.echo_res as f32,
                 d.ip as f32,
                 d.icmp as f32,
                 d.tcp as f32,
@@ -161,36 +163,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             (row, res)
         })
         .collect::<Vec<_>>();
-
-    {
-        csv::save(
-            data.as_slice(),
-            [
-                "total".to_string(),
-                "ip".to_string(),
-                "icmp".to_string(),
-                "tcp".to_string(),
-                "udp".to_string(),
-                "arp".to_string(),
-                "smtp".to_string(),
-                "dhcp".to_string(),
-                "addresses".to_string(),
-                "ports".to_string(),
-                "bytes".to_string(),
-                "data_bytes".to_string(),
-                "avg_size".to_string(),
-                "avg_deltas_size".to_string(),
-                "avg_time".to_string(),
-                "avg_deltas_time".to_string(),
-            ],
-            [
-                String::from("DELAY"),
-                String::from("UNREACHABLE"),
-                String::from("PAYLOAD"),
-                String::from("RANGE"),
-            ],
-        )?;
-    }
 
     let split = (data.len() as f32 * 0.8) as usize;
     let train_data = data.get(..split).unwrap();

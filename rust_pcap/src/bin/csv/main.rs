@@ -67,6 +67,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(|(d, res)| {
             let row = [
                 d.total as f32,
+                d.echo_req as f32,
+                d.echo_res as f32,
                 d.ip as f32,
                 d.icmp as f32,
                 d.tcp as f32,
@@ -91,7 +93,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut wtr = csv::Writer::from_path("data_set.csv")?;
     wtr.write_record([
-        "total", "ip", "icmp", "tcp", "udp", "arp", "smtp", "dhcp",
+        "total", "echo_req", "echo_res",
+        "ip", "icmp", "tcp", "udp", "arp", "smtp", "dhcp",
         "addresses", "ports", "bytes", "data_bytes",
         "avg_size", "avg_deltas_size", "avg_time", "avg_deltas_time",
         "DELAY", "UNREACHABLE", "PAYLOAD", "RANGE",

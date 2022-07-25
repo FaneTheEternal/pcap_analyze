@@ -19,7 +19,7 @@ fn main() {
         }
         last_time = Some(frame.ts);
 
-        count.apply(frame);
+        count.apply(&frame);
     }
     let count = count.flush(&mut pkt_sizes, &mut pkt_times);
     dbg!(count.total);
