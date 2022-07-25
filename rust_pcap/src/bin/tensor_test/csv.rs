@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::path::Path;
 
+#[allow(dead_code)]
 pub fn save<const I: usize, const O: usize>(
     data: &[([f32; I], [f32; O])],
     headers_data: [String; I],
@@ -20,6 +21,7 @@ pub fn save<const I: usize, const O: usize>(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn csv_write_file<P, I, II, S>(
     path: P,
     data: I,

@@ -1,18 +1,14 @@
 use std::error::Error;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
-use std::ops::AddAssign;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use pcap_parser::*;
-use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 use rand::prelude::*;
 use rayon::prelude::*;
 use tensorflow::train::AdadeltaOptimizer;
 use tracing::error;
 
-use rust_pcap::*;
 use rust_pcap::counter::Count;
 
 use crate::combo::WORD;
@@ -26,6 +22,7 @@ mod combo;
 
 const PERIOD: f64 = 2.0;
 
+#[allow(dead_code)]
 fn read3() -> Vec<(Count, [f32; 3])> {
     let normal = File::open("ping_normal.pcapng").unwrap();
     let normal = Count::compute(normal, PERIOD);
@@ -46,6 +43,7 @@ fn read3() -> Vec<(Count, [f32; 3])> {
         .collect::<Vec<_>>()
 }
 
+#[allow(dead_code)]
 fn read_generated() -> Vec<(Count, [f32; 4])> {
     const DELAY: u8 = 0b0100;
     const UNREACHABLE: u8 = 0b1000;
@@ -182,7 +180,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     rayon::ThreadPoolBuilder::new().num_threads(
         std::env::var("NUM_THREADS").map_or(2, |s| s.parse::<usize>().unwrap())
     ).build_global()?;
-    let mut state = Arc::new(Mutex::new(state));
+    let state = Arc::new(Mutex::new(state));
     let configs = word.into_iter()
         .map(|w| {
             w.into_iter().map(|e| 2u64.pow(e)).collect::<Vec<_>>()

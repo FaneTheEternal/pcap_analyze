@@ -66,6 +66,7 @@ fn layer<O1: Into<Output>>(
     ))
 }
 
+#[allow(dead_code)]
 pub fn gtrain<P: AsRef<Path>, const I: usize, const O: usize>(
     save_dir: P,
     train_data: &[([f32; I], [f32; O])],
@@ -81,6 +82,7 @@ pub fn gtrain<P: AsRef<Path>, const I: usize, const O: usize>(
     model.train(train_data)
 }
 
+#[allow(dead_code)]
 pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
     save_dir: P,
     train_data: &[([f32; I], [f32; O])],
@@ -89,6 +91,7 @@ pub fn train<P: AsRef<Path>, const I: usize, const O: usize>(
     gtrain(save_dir, train_data, &[256, 512, 128]).map(|_| ())
 }
 
+#[allow(dead_code)]
 pub fn eval<P: AsRef<Path>>(
     save_dir: P,
     eval_data: &[(String, [f32; 16], (f32, f32, f32))],
@@ -113,7 +116,6 @@ pub fn eval<P: AsRef<Path>>(
         for i in 0..16 {
             input_tensor[i] = stats[i];
         }
-        let expected = [target.0, target.1, target.2];
         let mut run_args = SessionRunArgs::new();
         run_args.add_feed(&input_op, input_info.name().index, &input_tensor);
         let output_fetch = run_args.request_fetch(&output_op, output_info.name().index);
