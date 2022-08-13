@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, NetworkEndian};
+use derivative::Derivative;
 
 use crate::*;
 
@@ -15,24 +16,26 @@ pub struct TCPFlags {
     pub fin: bool,
 }
 
-#[derive(Debug, Layer)]
+#[derive(Derivative, Layer)]
+#[derivative(Debug)]
 pub struct TCP {
     pub src: u16,
     pub dst: u16,
-    sn: u32,
-    ack_sn: u32,
-    header_len: u8,
+    pub sn: u32,
+    pub ack_sn: u32,
+    pub header_len: u8,
     pub flags: TCPFlags,
-    window_size: u16,
-    checksum: u16,
-    urgent_point: u16,
-    options: Vec<u8>,
+    pub window_size: u16,
+    pub checksum: u16,
+    pub urgent_point: u16,
+    pub options: Vec<u8>,
+    #[derivative(Debug = "ignore")]
     pub data: Vec<u8>,
     layers: Layers,
 }
 
 impl TCP {
-    pub fn new(data: &[u8]) -> TCP {
+    pub fn new(data: &[u8], ip: &impl IP, ctx: &mut DissectionContext) -> TCP {
         let src = NetworkEndian::read_u16(data.get(..2).unwrap());
         let dst = NetworkEndian::read_u16(data.get(2..4).unwrap());
         let sn = NetworkEndian::read_u32(data.get(4..8).unwrap());
@@ -55,11 +58,7 @@ impl TCP {
         let urgent_point = NetworkEndian::read_u16(data.get(18..20).unwrap());
         let options = data.get(20..(header_len.clone() as usize * 4)).unwrap().to_vec();
         let data = data.get((header_len.clone() as usize * 4)..).unwrap().to_vec();
-        let mut layers = Layers::default();
-        if let Some(http) = HTTP::try_make(data.as_slice()) {
-            layers.insert(http);
-        }
-        TCP {
+        let mut tcp = TCP {
             src,
             dst,
             sn,
@@ -71,8 +70,26 @@ impl TCP {
             urgent_point,
             options,
             data,
-            layers,
+            layers: default(),
+        };
+        let ctx = &mut ctx.tcp;
+        let key = Self::_key(ip.src(), tcp.src, ip.dst(), tcp.dst);
+        let mut sequence = ctx.entry(key.clone()).or_insert(default());
+        if let Some(http) = HTTP::try_make(&mut sequence, &tcp) {
+            tcp.layers.insert(http);
         }
+        if tcp.is_tail_of_sequence() {
+            ctx.remove(&key);
+        }
+        tcp
+    }
+
+    pub fn is_tail_of_sequence(&self) -> bool {
+        self.flags.psh | self.flags.fin
+    }
+
+    fn _key(src_ip: &[u8], src: u16, dst_ip: &[u8], dst: u16) -> String {
+        format!("{:?} {} -> {:?} {}", src_ip, src, dst_ip, dst)
     }
 }
 
@@ -80,4 +97,12 @@ impl HasLayers for TCP {
     fn layers(&self) -> &Layers {
         &self.layers
     }
+}
+
+pub type TCPContext = HashMap<String, TCPSequence>;
+
+
+#[derive(Debug, Default)]
+pub struct TCPSequence {
+    pub http: Option<HTTPContext>,
 }

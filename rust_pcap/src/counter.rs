@@ -113,8 +113,10 @@ impl Count {
         if let Some(_arp) = frame.get_layer::<ARP>() {
             self.arp += 1;
         }
-        if let Some(_http) = frame.get_layer::<HTTP>() {
-            self.http += 1;
+        if let Some(http) = frame.get_layer::<HTTP>() {
+            if http.is_finalized {
+                self.http += 1;
+            }
         }
         if let Some(_dhcp) = frame.get_layer::<DHCP>() {
             self.dhcp += 1;
@@ -156,6 +158,7 @@ impl Count {
             } else {
                 let mut diff = frame.ts - start.unwrap();
                 if diff > period {
+                    // println!("FLUSH {} with {} of {}", counts.len(), count.total, counter);
                     counts.push(count.flush(&mut sizes, &mut intervals));
                     diff -= period;
                     while diff > period {

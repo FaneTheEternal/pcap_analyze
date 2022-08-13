@@ -3,6 +3,11 @@ use byteorder::{ByteOrder, NetworkEndian};
 use crate::*;
 use crate::frame::icmp::ICMP;
 
+pub trait IP {
+    fn src(&self) -> &[u8];
+    fn dst(&self) -> &[u8];
+}
+
 #[derive(Layer, Debug)]
 pub struct IPFlags {
     pub null: bool,
@@ -35,7 +40,7 @@ pub struct IPv4 {
 }
 
 impl IPv4 {
-    pub fn new(data: &[u8]) -> IPv4 {
+    pub fn new(data: &[u8], ctx: &mut DissectionContext) -> IPv4 {
         let ihl = data.get(0).unwrap().clone();
         let ihl = ihl & 0x0F;
         let dscp = data.get(1).unwrap().clone();
@@ -62,20 +67,7 @@ impl IPv4 {
         } else {
             (None, data)
         };
-        let mut layers = Layers::default();
-        match protocol {
-            1 => {
-                layers.insert(ICMP::new(data));
-            }
-            6 => {
-                layers.insert(TCP::new(data));
-            }
-            17 => {
-                layers.insert(UDP::new(data));
-            }
-            _ => {}
-        }
-        IPv4 {
+        let mut ipv4 = IPv4 {
             ihl,
             dscp,
             ecn,
@@ -89,8 +81,31 @@ impl IPv4 {
             src: src.try_into().unwrap(),
             dst: dst.try_into().unwrap(),
             opt,
-            layers,
+            layers: default(),
+        };
+        match protocol {
+            1 => {
+                ipv4.layers.insert(ICMP::new(data));
+            }
+            6 => {
+                ipv4.layers.insert(TCP::new(data, &ipv4, ctx));
+            }
+            17 => {
+                ipv4.layers.insert(UDP::new(data));
+            }
+            _ => {}
         }
+        ipv4
+    }
+}
+
+impl IP for IPv4 {
+    fn src(&self) -> &[u8] {
+        &self.src
+    }
+
+    fn dst(&self) -> &[u8] {
+        &self.dst
     }
 }
 
@@ -120,7 +135,7 @@ pub struct IPv6 {
 }
 
 impl IPv6 {
-    pub fn new(data: &[u8]) -> IPv6 {
+    pub fn new(data: &[u8], _ctx: &mut DissectionContext) -> IPv6 {
         let qos = NetworkEndian::read_u16(data.get(0..2).unwrap());
         let qos = (qos << 4) as u8;
         let label = NetworkEndian::read_u32(data.get(..4).unwrap());
@@ -139,5 +154,15 @@ impl IPv6 {
             src,
             dst,
         }
+    }
+}
+
+impl IP for IPv6 {
+    fn src(&self) -> &[u8] {
+        &self.src
+    }
+
+    fn dst(&self) -> &[u8] {
+        &self.dst
     }
 }

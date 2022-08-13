@@ -1,27 +1,15 @@
 use std::fs::File;
+use std::time::Instant;
 
-use rust_pcap::*;
 use rust_pcap::counter::Count;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let file = File::open(args.get(1).unwrap()).unwrap();
-    let mut pkt_sizes = Vec::new();
-    let mut last_time = None;
-    let mut pkt_times = Vec::new();
-
-    let mut count = Count::default();
-    // for frame in PcapNG::new(file) {
-    for frame in Pcap::new(file) {
-        pkt_sizes.push(frame.data.len());
-        if let Some(time) = last_time {
-            pkt_times.push(time - frame.ts);
-        }
-        last_time = Some(frame.ts);
-
-        count.apply(&frame);
-    }
-    let count = count.flush(&mut pkt_sizes, &mut pkt_times);
+    let now = Instant::now();
+    let counts = Count::compute_legacy(file, 1000000.0);
+    println!("Elapsed {}ms", now.elapsed().as_millis());
+    let count = counts.get(0).unwrap();
     dbg!(count.total);
     dbg!(count.ip);
     dbg!(count.tcp);

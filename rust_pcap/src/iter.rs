@@ -3,11 +3,12 @@ use std::fs::File;
 use pcap_parser::{Block, LegacyPcapReader, Linktype, PcapBlockOwned, PcapError, PcapNGReader};
 use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 
-use crate::Frame;
+use crate::{default, DissectionContext, Frame};
 
 pub struct Pcap {
     reader: LegacyPcapReader<File>,
     link_type: Linktype,
+    ctx: DissectionContext,
 }
 
 impl Pcap {
@@ -17,6 +18,7 @@ impl Pcap {
         Self {
             reader,
             link_type: Linktype::NULL,
+            ctx: default(),
         }
     }
 }
@@ -31,11 +33,12 @@ impl Iterator for Pcap {
                 Ok((offset, block)) => {
                     match block {
                         PcapBlockOwned::LegacyHeader(hdr) => {
-                            println!("{hdr:?}");
+                            println!("{:?}", hdr);
+                            println!("Pcap root is {}", hdr.network);
                             self.link_type = hdr.network;
                         }
                         PcapBlockOwned::Legacy(b) => {
-                            item = Some(Frame::from_legacy(&b, self.link_type));
+                            item = Some(Frame::from_legacy(&b, self.link_type, &mut self.ctx));
                         }
                         PcapBlockOwned::NG(_) => unreachable!(),
                     }
@@ -55,10 +58,12 @@ impl Iterator for Pcap {
 
 pub struct PcapNG {
     reader: PcapNGReader<File>,
-    if_linktypes: Vec<pcap_parser::Linktype>,
+    if_linktypes: Vec<Linktype>,
 
     if_tsresol: u8,
     if_tsoffset: u64,
+
+    ctx: DissectionContext,
 }
 
 impl PcapNG {
@@ -70,6 +75,7 @@ impl PcapNG {
             if_linktypes: vec![],
             if_tsresol: 0,
             if_tsoffset: 0,
+            ctx: default(),
         }
     }
 }
@@ -100,6 +106,7 @@ impl Iterator for PcapNG {
                             item = Some(Frame::from_enhanced(
                                 epb, linktype,
                                 self.if_tsoffset, self.if_tsresol,
+                                &mut self.ctx,
                             ));
                         }
                         PcapBlockOwned::NG(Block::SimplePacket(ref spb)) => {
@@ -114,6 +121,7 @@ impl Iterator for PcapNG {
                                 0,
                                 spb.orig_len(),
                                 linktype,
+                                &mut self.ctx,
                             ));
                         }
                         PcapBlockOwned::NG(_) => {
