@@ -1,5 +1,7 @@
 use std::fs::File;
+use std::vec::IntoIter;
 
+use pcap::{Packet, PacketCodec, PacketHeader};
 use pcap_parser::{Block, LegacyPcapReader, Linktype, PcapBlockOwned, PcapError, PcapNGReader};
 use pcap_parser::traits::{PcapNGPacketBlock, PcapReaderIterator};
 
@@ -144,5 +146,45 @@ impl Iterator for PcapNG {
             }
         }
         item
+    }
+}
+
+pub struct PcapIterator {
+    packets: IntoIter<PacketOwned>,
+
+    ctx: DissectionContext,
+}
+
+impl PcapIterator{
+    pub fn new(packets: Vec<PacketOwned>) -> Self {
+        return Self { packets: packets.into_iter(), ctx: default() };
+    }
+}
+
+impl Iterator for PcapIterator {
+    type Item = Frame;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.packets.next().and_then(|pkt| Some(Frame::from_packed(pkt, &mut self.ctx)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PacketOwned {
+    pub header: PacketHeader,
+    pub data: Box<[u8]>,
+}
+
+/// Simple codec that tranform [`pcap::Packet`] into [`PacketOwned`]
+pub struct Codec;
+
+impl PacketCodec for Codec {
+    type Item = PacketOwned;
+
+    fn decode(&mut self, packet: Packet) -> Self::Item {
+        PacketOwned {
+            header: *packet.header,
+            data: packet.data.into(),
+        }
     }
 }

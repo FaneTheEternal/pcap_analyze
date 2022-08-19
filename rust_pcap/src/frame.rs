@@ -75,6 +75,12 @@ impl Frame {
             ctx,
         )
     }
+
+    pub fn from_packed(pkt: PacketOwned, ctx: &mut DissectionContext) -> Self {
+        let hdr = pkt.header;
+        let ts = hdr.ts.tv_sec as f64 + hdr.ts.tv_usec as f64 * 0.000001;
+        Self::new(pkt.data.as_ref(), ts, hdr.caplen, hdr.len, Linktype::ETHERNET, ctx)
+    }
 }
 
 impl HasLayers for Frame {

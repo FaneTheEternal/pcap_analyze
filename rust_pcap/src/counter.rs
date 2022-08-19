@@ -136,15 +136,15 @@ impl Count {
         }
     }
 
-    pub fn compute(file: File, period: f64) -> Vec<Count> {
-        Self::_compute(PcapNG::new(file), period)
+    pub fn compute_ng(file: File, period: f64) -> Vec<Count> {
+        Self::compute(PcapNG::new(file), period)
     }
 
     pub fn compute_legacy(file: File, period: f64) -> Vec<Count> {
-        Self::_compute(Pcap::new(file), period)
+        Self::compute(Pcap::new(file), period)
     }
 
-    pub fn _compute(pcap: impl Iterator<Item=Frame>, period: f64) -> Vec<Count> {
+    pub fn compute(pcap: impl Iterator<Item=Frame>, period: f64) -> Vec<Count> {
         let mut counter = 0usize;
 
         let mut counts = Vec::new();

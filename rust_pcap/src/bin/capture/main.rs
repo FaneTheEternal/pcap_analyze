@@ -1,8 +1,7 @@
-use std::fs::File;
-
 use pcap::*;
 
 use rust_pcap::counter::Count;
+use rust_pcap::{Codec, PcapIterator};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -20,19 +19,24 @@ fn main() {
         .open().unwrap()
         .setnonblock().unwrap();
 
+    let mut packets = vec![];
     let now = chrono::Local::now();
-    let file = now.format("capture_%Y%m%d_%H%M%S.pcap").to_string();
-    let mut save_file = capture.savefile(&file).unwrap();
+    let mut pkt_iter = capture.iter(Codec);
     loop {
-        if let Ok(pkt) = capture.next_packet() {
-            save_file.write(&pkt);
+        if let Some(pkt) = pkt_iter.next() {
+            if let Ok(pkt) = pkt {
+                packets.push(pkt);
+            }
         }
         if (chrono::Local::now() - now).num_seconds() > capture_period as i64 {
             break;
         }
     }
 
-    let counts = Count::compute_legacy(File::open(&file).unwrap(), capture_period + 1.0);
+    let counts = Count::compute(
+        PcapIterator::new(packets),
+        capture_period + 1.0,
+    );
     let stats = counts.get(0).unwrap();
     dbg!(stats);
 }
