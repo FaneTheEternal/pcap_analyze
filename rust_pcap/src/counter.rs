@@ -1,16 +1,18 @@
 use std::collections::HashSet;
 use std::fs::File;
 
+use derivative::Derivative;
+
 use crate::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IPCount {
     pub null: usize,
     pub df: usize,
     pub mf: usize,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TCPCount {
     pub ns: usize,
     pub cwr: usize,
@@ -23,7 +25,16 @@ pub struct TCPCount {
     pub fin: usize,
 }
 
-#[derive(Default)]
+fn _count_fmt<T>(
+    iter: &HashSet<T>,
+    fmt: &mut std::fmt::Formatter,
+) -> Result<(), std::fmt::Error>
+{
+    write!(fmt, "{}", iter.len())
+}
+
+#[derive(Default, Derivative)]
+#[derivative(Debug)]
 pub struct Count {
     pub total: usize,
     pub echo_req: usize,
@@ -40,7 +51,9 @@ pub struct Count {
     pub smtp: usize,
     pub dhcp: usize,
 
+    #[derivative(Debug(format_with = "_count_fmt"))]
     pub addresses: HashSet<[u8; 4]>,
+    #[derivative(Debug(format_with = "_count_fmt"))]
     pub ports: HashSet<u16>,
 
     pub bytes: usize,
