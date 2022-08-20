@@ -22,6 +22,7 @@ use tensorflow::{
     TensorInfo, train::{AdadeltaOptimizer, MinimizeOptions, Optimizer}, Variable,
 };
 use tracing::{info, Level, span};
+use rust_pcap::{fmt_iter};
 
 // Helper for building a layer.
 //
@@ -125,18 +126,6 @@ pub fn eval<P: AsRef<Path>>(
         println!("Result for {}: {:?}", verbose, output)
     }
     Ok(())
-}
-
-macro_rules! fmt_iter {
-    ($iter:expr, $separator:expr, $fmt:tt) => {
-        $iter.iter()
-            .map(|e| format!($fmt, e))
-            .collect::<Vec<_>>()
-            .join($separator)
-    };
-    ($iter:expr, $separator:expr) => {
-        fmt_iter!($iter, $separator, "{}")
-    }
 }
 
 pub struct GenericNeuralNetwork<const I: usize, const O: usize> {

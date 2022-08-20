@@ -186,6 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             w.into_iter().map(|e| 2u64.pow(e)).collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
+    // let configs = vec![vec![16, 256, 128]];
 
     let g_result: Vec<Result<(), Box<dyn Error + Send + Sync>>> = configs.into_par_iter().map(|h| {
         let mut model = GenericNeuralNetwork::new(
