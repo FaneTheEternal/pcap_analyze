@@ -1,9 +1,17 @@
 use pcap::*;
+use tracing::info;
 
+use rust_pcap::{Codec, default, PcapIterator};
 use rust_pcap::counter::Count;
-use rust_pcap::{Codec, PcapIterator};
+use rust_pcap::tf::{NeuralNetwork, NNContext};
 
-fn main() {
+fn main() -> Result<(), Box<dyn ::std::error::Error>> {
+    let format = tracing_subscriber::fmt::format()
+        .with_target(false);
+    tracing_subscriber::fmt()
+        .event_format(format)
+        .init();
+
     let args: Vec<String> = std::env::args().collect();
     let device_name = args.get(1).unwrap();
     let capture_period = args.get(2).unwrap()
@@ -14,29 +22,47 @@ fn main() {
         .find(|d| d.desc.as_ref().unwrap().contains(device_name))
         .unwrap();
     println!("{:?}", device);
-    let mut capture = Capture::from_device(device).unwrap()
+    let mut capture = Capture::from_device(device.clone()).unwrap()
         .immediate_mode(true)
         .open().unwrap()
         .setnonblock().unwrap();
-
-    let mut packets = vec![];
-    let now = chrono::Local::now();
     let mut pkt_iter = capture.iter(Codec);
+
+    let mut model = NeuralNetwork::new(
+        vec![16, 256, 128],
+        0,
+        0,
+    );
+    model.ctx.replace(NNContext {
+        input: 18,
+        output: 4,
+        ..default()
+    });
     loop {
-        if let Some(pkt) = pkt_iter.next() {
-            if let Ok(pkt) = pkt {
-                packets.push(pkt);
+        let mut packets = vec![];
+        let now = chrono::Local::now();
+        loop {
+            if let Some(pkt) = pkt_iter.next() {
+                if let Ok(pkt) = pkt {
+                    packets.push(pkt);
+                }
+            }
+            if (chrono::Local::now() - now).num_seconds() > capture_period as i64 {
+                break;
             }
         }
-        if (chrono::Local::now() - now).num_seconds() > capture_period as i64 {
-            break;
-        }
+        let counts = Count::compute(
+            PcapIterator::new(packets),
+            capture_period + 1.0,
+        );
+        let stats = counts.get(0).unwrap();
+        let result = model.eval(&stats.as_row())?;
+        info!(
+            "DELAY: {:^12} UNREACHABLE: {:^12} PAYLOAD: {:^12} RANGE: {:^12}",
+            result.get(0).unwrap(),
+            result.get(1).unwrap(),
+            result.get(2).unwrap(),
+            result.get(3).unwrap()
+        );
     }
-
-    let counts = Count::compute(
-        PcapIterator::new(packets),
-        capture_period + 1.0,
-    );
-    let stats = counts.get(0).unwrap();
-    dbg!(stats);
 }
