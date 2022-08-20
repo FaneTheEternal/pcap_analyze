@@ -198,4 +198,27 @@ impl Count {
         println!("COUNTS APPLY {} FRAMES", counter);
         counts
     }
+
+    pub fn as_row(&self) -> Vec<f32> {
+        vec![
+            self.total as f32,
+            self.echo_req as f32,
+            self.echo_res as f32,
+            self.ip as f32,
+            self.icmp as f32,
+            self.tcp as f32,
+            self.udp as f32,
+            self.arp as f32,
+            self.smtp as f32,
+            self.dhcp as f32,
+            self.addresses.len() as f32,
+            self.ports.len() as f32,
+            self.bytes as f32,
+            self.data_bytes as f32,
+            self.avg_size,
+            self.avg_deltas_size,
+            self.avg_time,
+            self.avg_deltas_time,
+        ]
+    }
 }

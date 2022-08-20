@@ -21,6 +21,7 @@ pub use iter::*;
 mod frame;
 mod iter;
 pub mod counter;
+pub mod tf;
 
 pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
     (data.get(..i).unwrap(), data.get(i..).unwrap())
