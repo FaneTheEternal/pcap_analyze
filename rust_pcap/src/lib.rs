@@ -26,6 +26,10 @@ pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
     (data.get(..i).unwrap(), data.get(i..).unwrap())
 }
 
+pub fn to_string<S: std::fmt::Display + Sized>(s: S) -> String {
+    s.to_string()
+}
+
 pub fn default<T: Default>() -> T {
     Default::default()
 }
@@ -44,6 +48,19 @@ macro_rules! get_layer_descendants {
         $(
         .or_else(|| get_layer::<_, $type>($self).and_then(|l| { l.get_layer::<$target>() }))
         )+
+    }
+}
+
+#[macro_export]
+macro_rules! fmt_iter {
+    ($iter:expr, $separator:expr, $fmt:tt) => {
+        $iter.iter()
+            .map(|e| format!($fmt, e))
+            .collect::<Vec<_>>()
+            .join($separator)
+    };
+    ($iter:expr, $separator:expr) => {
+        fmt_iter!($iter, $separator, "{}")
     }
 }
 
