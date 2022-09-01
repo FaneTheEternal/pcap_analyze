@@ -1,11 +1,19 @@
 import sys
+from time import sleep
 
 from scapy import all as sc
 
-from counter import Counter
+from counter import Counter, Count
 
-packets = sc.PcapReader(sys.argv[1])
+period = int(sys.argv[1])
 
-counter = Counter(1000000)
-counter.invoke(packets)
-counter.save_spreadsheet(sys.argv[1].split('.')[0])
+print(*Count.spreadsheet_headers())
+
+while True:
+    capture = sc.sniff(timeout=period)
+    sleep(period)
+    stats = Counter(period + 1)
+    stats.invoke(capture)
+    stats = stats.counts[0]
+    print(*stats.as_row())
+
