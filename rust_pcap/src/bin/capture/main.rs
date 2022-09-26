@@ -7,7 +7,8 @@ use rust_pcap::tf::{NeuralNetwork, NNContext};
 
 fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     let format = tracing_subscriber::fmt::format()
-        .with_target(false);
+        .with_target(false)
+        .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339());
     tracing_subscriber::fmt()
         .event_format(format)
         .init();
@@ -26,6 +27,7 @@ fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .immediate_mode(true)
         .open().unwrap()
         .setnonblock().unwrap();
+    capture.filter("icmp", true)?;
     let mut pkt_iter = capture.iter(Codec);
 
     let mut model = NeuralNetwork::new(
@@ -55,7 +57,12 @@ fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             PcapIterator::new(packets),
             capture_period + 1.0,
         );
+        if counts.is_empty() {
+            info!("PASS EMPTY");
+            continue;
+        }
         let stats = counts.get(0).unwrap();
+        dbg!(stats);
         let result = model.eval(&stats.as_row())?;
         info!(
             "DELAY: {:^12} UNREACHABLE: {:^12} PAYLOAD: {:^12} RANGE: {:^12}",

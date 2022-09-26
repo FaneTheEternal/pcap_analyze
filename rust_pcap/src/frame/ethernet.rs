@@ -3,6 +3,7 @@ use std::fmt::Formatter;
 use byteorder::{ByteOrder, NetworkEndian};
 
 use crate::*;
+use crate::goose::GOOSE;
 
 #[derive(Layer)]
 pub struct Ethernet {
@@ -49,6 +50,7 @@ impl Ethernet {
     const MPLS_UNICAST: u16 = 0x8847;
     const MPLS_MULTICAST: u16 = 0x8848;
     // TODO: Many others from https://en.wikipedia.org/wiki/EtherType
+    const GOOSE: u16 = 0x88B8;
 
     pub fn new(data: MultipartSlice, ctx: &mut DissectionContext) -> Ethernet {
         let mut layers = Layers::default();
@@ -77,7 +79,7 @@ impl Ethernet {
                 let slice = MultipartSlice {
                     slices: vec![
                         data.get(..12).unwrap(),
-                        data.get(16..).unwrap()
+                        data.get(16..).unwrap(),
                     ]
                 };
                 return Self::new(slice, ctx);
@@ -92,6 +94,9 @@ impl Ethernet {
             Self::COBRA_NET => { if WARN_ETHER_TYPE { println!("COBRA_NET not implemented") } }
             Self::MPLS_UNICAST => { if WARN_ETHER_TYPE { println!("MPLS_UNICAST not implemented") } }
             Self::MPLS_MULTICAST => { if WARN_ETHER_TYPE { println!("MPLS_MULTICAST not implemented") } }
+            Self::GOOSE => {
+                layers.insert(GOOSE::new(data.get(14..).unwrap()));
+            }
             _ => { if WARN_ETHER_TYPE { println!("unknown eth_type: {:#04x}", eth_type) } }
         }
         Ethernet {
