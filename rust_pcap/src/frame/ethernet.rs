@@ -18,7 +18,7 @@ impl std::fmt::Debug for Ethernet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let src = self.src.map(|b| format!("{:X}", b)).join(":");
         let dst = self.dst.map(|b| format!("{:X}", b)).join(":");
-        write!(f, "Ethernet(Mac({}->{:}) Type(0x{:#04x}))", src, dst, self.eth_type)
+        write!(f, "Ethernet(Mac({}->{:}) Type({:#04x}))", src, dst, self.eth_type)
     }
 }
 
