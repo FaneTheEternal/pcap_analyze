@@ -53,10 +53,7 @@ fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 break;
             }
         }
-        let counts = Count::compute(
-            PcapIterator::new(packets),
-            capture_period + 1.0,
-        );
+        let counts = Count::compute(PcapIterator::new(packets), None);
         if counts.is_empty() {
             info!("PASS EMPTY");
             continue;

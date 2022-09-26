@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<_>>();
 
     let out = File::open("out.pcap").unwrap();
-    let out = Count::compute_legacy(out, PERIOD);
+    let out = Count::compute_legacy(out, Some(PERIOD));
 
     let mut offset = 0usize;
     let mut data_set = out.into_iter()

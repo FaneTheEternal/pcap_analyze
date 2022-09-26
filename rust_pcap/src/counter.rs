@@ -136,15 +136,15 @@ impl Count {
         }
     }
 
-    pub fn compute_ng(file: File, period: f64) -> Vec<Count> {
+    pub fn compute_ng(file: File, period: Option<f64>) -> Vec<Count> {
         Self::compute(PcapNG::new(file), period)
     }
 
-    pub fn compute_legacy(file: File, period: f64) -> Vec<Count> {
+    pub fn compute_legacy(file: File, period: Option<f64>) -> Vec<Count> {
         Self::compute(Pcap::new(file), period)
     }
 
-    pub fn compute(pcap: impl Iterator<Item=Frame>, period: f64) -> Vec<Count> {
+    pub fn compute(pcap: impl Iterator<Item=Frame>, period: Option<f64>) -> Vec<Count> {
         let mut counter = 0usize;
 
         let mut counts = Vec::new();
@@ -168,7 +168,7 @@ impl Count {
 
             if start.is_none() {
                 start = Some(frame.ts);
-            } else {
+            } else if let Some(period) = period {
                 let mut diff = frame.ts - start.unwrap();
                 if diff > period {
                     // println!("FLUSH {} with {} of {}", counts.len(), count.total, counter);

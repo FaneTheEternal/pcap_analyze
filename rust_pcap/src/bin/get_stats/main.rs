@@ -5,9 +5,14 @@ use rust_pcap::counter::Count;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let file = File::open(args.get(1).unwrap()).unwrap();
+    let file_name = args.get(1).unwrap();
+    let file = File::open(file_name).unwrap();
     let now = Instant::now();
-    let counts = Count::compute_legacy(file, 1000000.0);
+    let counts = if file_name.ends_with(".pcapng") {
+        Count::compute_ng(file, None)
+    } else {
+        Count::compute_legacy(file, None)
+    };
     println!("Elapsed {}ms", now.elapsed().as_millis());
     let count = counts.get(0).unwrap();
     dbg!(count.total);
