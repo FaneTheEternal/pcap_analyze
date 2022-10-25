@@ -2,6 +2,7 @@ use byteorder::{ByteOrder, NetworkEndian};
 use derivative::Derivative;
 
 use crate::*;
+use crate::opc_ua::OpcUa;
 
 #[derive(Debug)]
 pub struct TCPFlags {
@@ -31,6 +32,8 @@ pub struct TCP {
     pub options: Vec<u8>,
     #[derivative(Debug = "ignore")]
     pub data: Vec<u8>,
+    #[derivative(Debug = "ignore")]
+    pub whole_data: Vec<u8>,
     layers: Layers,
 }
 
@@ -70,16 +73,23 @@ impl TCP {
             urgent_point,
             options,
             data,
+            whole_data: default(),
             layers: default(),
         };
         let ctx = &mut ctx.tcp;
         let key = Self::_key(ip.src(), tcp.src, ip.dst(), tcp.dst);
         let mut sequence = ctx.entry(key.clone()).or_insert(default());
+        sequence.data.extend(&tcp.data);
         if let Some(http) = HTTP::try_make(&mut sequence, &tcp) {
             tcp.layers.insert(http);
         }
+        if let Some(opc_ua) = OpcUa::try_make(&tcp) {
+            tcp.layers.insert(opc_ua);
+        }
         if tcp.is_tail_of_sequence() {
-            ctx.remove(&key);
+            if let Some(seq) = ctx.remove(&key) {
+                tcp.whole_data = seq.data;
+            }
         }
         tcp
     }
@@ -104,5 +114,6 @@ pub type TCPContext = HashMap<String, TCPSequence>;
 
 #[derive(Debug, Default)]
 pub struct TCPSequence {
+    pub data: Vec<u8>,
     pub http: Option<HTTPContext>,
 }

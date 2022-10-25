@@ -23,6 +23,7 @@ fn main() {
     dbg!(count.arp);
     dbg!(count.http);
     dbg!(count.dhcp);
+    dbg!(count.opc_ua);
     dbg!(count.addresses.len());
     dbg!(count.ports.len());
     dbg!(count.bytes);

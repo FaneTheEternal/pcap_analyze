@@ -128,6 +128,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .event_format(format)
         .init();
 
+    rayon::ThreadPoolBuilder::new().num_threads(
+        std::env::var("NUM_THREADS").map_or(2, |s| s.parse::<usize>().unwrap())
+    ).build_global()?;
+
     // let mut data_set = read3();
     let mut data_set = read_generated();
     let mut rng = thread_rng();
@@ -156,8 +160,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 d.avg_time,
                 d.avg_deltas_time,
             ];
-            // println!("{:?}", row);
-            // println!("{:?}", res);
             (row, res)
         })
         .collect::<Vec<_>>();
@@ -176,10 +178,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                  "check error 1", "check error 1", "check error 1", "check error 1"]
         )?;
     }
-
-    rayon::ThreadPoolBuilder::new().num_threads(
-        std::env::var("NUM_THREADS").map_or(2, |s| s.parse::<usize>().unwrap())
-    ).build_global()?;
     let state = Arc::new(Mutex::new(state));
     let configs = word.into_iter()
         .map(|w| {

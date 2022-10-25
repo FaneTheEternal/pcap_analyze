@@ -34,6 +34,8 @@ nom_locate = "4.0.0"
 lazy_static = "1.4.0"
 memmem = "0.1.1"
 chrono = "0.4.22"
+strum = "0.24.1"
+strum_macros = "0.24.3"
 
 tracing = "0.1.35"
 tracing-subscriber = { version = "0.3.11", features = ["fmt", "time", "local-time"] }

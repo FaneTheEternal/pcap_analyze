@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::io::Read;
 use std::rc::Rc;
 
 use derivative::Derivative;
@@ -105,7 +104,7 @@ impl HTTP {
                 .position(|e| e == LINE2.as_bytes())?
         };
         let payload_start = headers_end + LINE2.len();
-        let mut only_payload = ctx.last.is_some();
+        let only_payload = ctx.last.is_some();
         ctx.last = Some(headers_end);
         if only_payload {
             ctx.payload.borrow_mut().extend(&tcp.data);

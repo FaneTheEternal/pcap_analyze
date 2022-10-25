@@ -4,6 +4,7 @@ use std::fs::File;
 use derivative::Derivative;
 
 use crate::*;
+use crate::opc_ua::OpcUa;
 
 #[derive(Default, Debug)]
 pub struct IPCount {
@@ -50,6 +51,7 @@ pub struct Count {
     pub http: usize,
     pub smtp: usize,
     pub dhcp: usize,
+    pub opc_ua: usize,
 
     #[derivative(Debug(format_with = "_count_fmt"))]
     pub addresses: HashSet<[u8; 4]>,
@@ -133,6 +135,11 @@ impl Count {
         }
         if let Some(_dhcp) = frame.get_layer::<DHCP>() {
             self.dhcp += 1;
+        }
+        if let Some(opc_ua) = frame.get_layer::<OpcUa>() {
+            self.opc_ua += 1;
+            println!("{}: {:?} {} {}", self.total,
+                     opc_ua.msg_type, opc_ua.chunk_type, opc_ua.message_size)
         }
     }
 
