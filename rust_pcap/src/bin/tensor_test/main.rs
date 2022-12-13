@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use ::csv::ReaderBuilder;
 
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -10,6 +11,7 @@ use tensorflow::train::AdadeltaOptimizer;
 use tracing::error;
 
 use rust_pcap::counter::Count;
+use rust_pcap::tf::NeuralNetwork;
 
 use crate::combo::WORD;
 use crate::nn::{GenericNeuralNetwork};
@@ -128,113 +130,33 @@ fn main() -> Result<(), Box<dyn Error>> {
         .event_format(format)
         .init();
 
-    rayon::ThreadPoolBuilder::new().num_threads(
-        std::env::var("NUM_THREADS").map_or(2, |s| s.parse::<usize>().unwrap())
-    ).build_global()?;
-
-    // let mut data_set = read3();
-    let mut data_set = read_generated();
-    let mut rng = thread_rng();
-    data_set.shuffle(&mut rng);
-    println!("TOTAL {} ROWS", data_set.len());
-
-    let data = data_set.into_iter()
-        .map(|(d, res)| {
-            let row = [
-                d.total as f32,
-                d.echo_req as f32,
-                d.echo_res as f32,
-                d.ip as f32,
-                d.icmp as f32,
-                d.tcp as f32,
-                d.udp as f32,
-                d.arp as f32,
-                d.smtp as f32,
-                d.dhcp as f32,
-                d.addresses.len() as f32,
-                d.ports.len() as f32,
-                d.bytes as f32,
-                d.data_bytes as f32,
-                d.avg_size,
-                d.avg_deltas_size,
-                d.avg_time,
-                d.avg_deltas_time,
-            ];
-            (row, res)
-        })
-        .collect::<Vec<_>>();
-
-    let split = (data.len() as f32 * 0.8) as usize;
-    let train_data = data.get(..split).unwrap();
-    let eval_data = data.get(split..).unwrap();
-
-    let word = WORD::new((2..=9).collect(), 3);
-
-    let mut state = State::get();
-    if !state.is_done("Model".into()) {
-        state.append(
-            vec!["Model",
-                 "error squared 1", "error squared 2", "error squared 3", "error squared 4",
-                 "check error 1", "check error 1", "check error 1", "check error 1"]
-        )?;
-    }
-    let state = Arc::new(Mutex::new(state));
-    let configs = word.into_iter()
-        .map(|w| {
-            w.into_iter().map(|e| 2u64.pow(e)).collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-    // let configs = vec![vec![16, 256, 128]];
-
-    let g_result: Vec<Result<(), Box<dyn Error + Send + Sync>>> = configs.into_par_iter().map(|h| {
-        let mut model = GenericNeuralNetwork::new(
-            &h,
-            1_000,
-            100,
-            Box::new(AdadeltaOptimizer::new()),
-        );
-        if state.lock().unwrap().is_done(model.name()) {
-            return Ok(());
-        }
-        const CONTROL: usize = 3;
-        let mut avg = Vec::new();
-        for _ in 0..CONTROL {
-            q_del(model.model_path()).fix_box()?;
-            let errors = model.train(&train_data).fix_box()?;
-            let error = errors.into_iter().last().unwrap();
-            let check = model.check(&eval_data).fix_box()?;
-            avg.push(error.into_iter().chain(check).collect::<Vec<_>>())
-        }
-        let mut row = avg.into_iter()
-            .fold(vec![0f32; 8], |acc, e| {
-                acc.into_iter().zip(e)
-                    .map(|(a, e)| a + e)
-                    .collect::<Vec<_>>()
-            })
-            .into_iter()
-            .map(|e| (e / CONTROL as f32).to_string())
+    let mut data = vec![];
+    let mut rdr = ReaderBuilder::new()
+        .delimiter(b',')
+        // .from_path("data_set_purified.csv")?;
+        .from_path("data_set_generated.csv")?;
+    for record in rdr.records() {
+        let record = record?;
+        let record = record.into_iter()
+            .map(|r| r.parse::<f32>().unwrap())
             .collect::<Vec<_>>();
-        row.insert(0, model.name());
-        state.lock().unwrap().append(row).fix_box()?;
-        Ok(())
-    }).collect::<Vec<_>>();
-
-    let g_result = g_result.into_iter()
-        .filter_map(|r| {
-            match r {
-                Ok(_) => { None }
-                Err(e) => { Some(e) }
-            }
-        })
-        .collect::<Vec<_>>();
-    if g_result.is_empty() {
-        let state = Arc::try_unwrap(state).unwrap();
-        csv::csv_write_file("3.csv", state.into_inner().unwrap())?;
-    } else {
-        for e in g_result {
-            error!("{}", e);
-        }
+        data.push((
+            record.get(..6).unwrap().to_vec(),
+            record.get(6..).unwrap().to_vec(),
+        ));
     }
+    let mut rng = thread_rng();
+    data.shuffle(&mut rng);
+
+    let mut nn = NeuralNetwork::new(
+        [24, 48, 24],
+        10000,
+        25,
+    );
+
+    let split = (data.len() as f32 * 1.0) as usize;
+    let train = data.get(..split).unwrap();
+    nn.train(train)?;
 
     Ok(())
 }

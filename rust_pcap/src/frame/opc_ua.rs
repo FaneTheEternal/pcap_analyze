@@ -1,5 +1,4 @@
-use byteorder::{ByteOrder, NetworkEndian, LittleEndian};
-use derivative::Derivative;
+use byteorder::{ByteOrder, LittleEndian};
 use strum::{IntoEnumIterator};
 use strum_macros::EnumIter;
 

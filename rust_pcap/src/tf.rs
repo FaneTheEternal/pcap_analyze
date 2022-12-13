@@ -92,7 +92,7 @@ pub struct NeuralNetwork {
     hidden: Vec<u64>,
     pub epoch: usize,
     pub capture_period: usize,
-    pub optimizer: Box<dyn Optimizer>,
+    pub optimizer: Option<Box<dyn Optimizer>>,
     pub ctx: Option<NNContext>,
     pub save_after_training: bool,
 }
@@ -112,7 +112,7 @@ impl NeuralNetwork {
             hidden,
             epoch,
             capture_period,
-            optimizer: Box::new(AdadeltaOptimizer::new()),
+            optimizer: None,
             ctx: default(),
             save_after_training: true,
         }
@@ -142,7 +142,7 @@ impl NeuralNetwork {
 
     pub fn train(
         &mut self,
-        data: &[(&[f32], &[f32])],
+        data: &[(Vec<f32>, Vec<f32>)],
     ) -> Result<(), Box<dyn Error>>
     {
         if data.is_empty() {
@@ -211,11 +211,26 @@ impl NeuralNetwork {
         variables.extend(vars0);
         variables.extend(vars_hidden);
         variables.extend(vars_output);
-        let (minimizer_vars, minimize) = self.optimizer.minimize(
-            scope,
-            error_squared.clone().into(),
-            MinimizeOptions::default().with_variables(&variables),
-        )?;
+        let (minimizer_vars, minimize) = if let Some(optimizer) = &self.optimizer {
+            optimizer.minimize(
+                scope,
+                error_squared.clone().into(),
+                MinimizeOptions::default().with_variables(&variables),
+            )?
+        } else {
+            let mut optimizer = AdadeltaOptimizer::new();
+            // 0.001_f32
+            optimizer.set_learning_rate(ops::constant(0.001_f32, scope)?);
+            // 0.95_f32
+            optimizer.set_rho(ops::constant(0.95_f32, scope)?);
+            // 1e-8_f32
+            optimizer.set_epsilon(ops::constant(1e-8_f32, scope)?);
+            optimizer.minimize(
+                scope,
+                error_squared.clone().into(),
+                MinimizeOptions::default().with_variables(&variables),
+            )?
+        };
         let mut all_vars = variables.clone();
         all_vars.extend_from_slice(&minimizer_vars);
         let mut builder = tensorflow::SavedModelBuilder::new();
