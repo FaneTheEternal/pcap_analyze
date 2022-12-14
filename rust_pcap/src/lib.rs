@@ -1,10 +1,15 @@
 #![allow(dead_code)]
 
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::error::Error;
 use std::fmt::Formatter;
-use std::ops::{Range, RangeFrom, RangeTo};
+use std::hash::{Hash, Hasher};
+use std::ops::{AddAssign, Range, RangeFrom, RangeFull, RangeTo};
+use std::path::Path;
 use std::ptr::NonNull;
 use std::slice::SliceIndex;
+use csv::ReaderBuilder;
 
 pub use analyze_derive::*;
 pub use frame::*;
@@ -182,4 +187,69 @@ impl<Idx> From<RangeTo<Idx>> for MyRange<Idx> {
     fn from(o: RangeTo<Idx>) -> Self {
         Self { start: None, end: Some(o.end) }
     }
+}
+
+
+pub fn print_stats<P: AsRef<Path>>(
+    path: P, range: Range<usize>, headers: &[&str],
+) -> Result<(), Box<dyn Error>>
+{
+    assert_eq!(range.end - range.start, headers.len());
+
+    #[derive(PartialEq, Debug)]
+    struct Row(Vec<f32>);
+    impl Hash for Row {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            format!("{:?}", self.0).hash(state)
+        }
+    }
+    impl From<Vec<f32>> for Row {
+        fn from(v: Vec<f32>) -> Self {
+            Row(v)
+        }
+    }
+    impl Eq for Row {}
+
+    let mut rdr = ReaderBuilder::new()
+        .delimiter(b',')
+        .from_path(path)?;
+    let mut stats = HashMap::<Row, usize>::new();
+    let mut count = 0usize;
+    for record in rdr.records() {
+        count += 1;
+        let record = record?;
+        let record = record.into_iter()
+            .map(|r| r.parse::<f32>().unwrap())
+            .collect::<Vec<_>>();
+        let record = record.get(range.clone()).unwrap().to_vec();
+        match stats.entry(record.into()) {
+            Entry::Occupied(mut oc) => {
+                oc.get_mut().add_assign(1);
+            }
+            Entry::Vacant(vac) => {
+                vac.insert(1);
+            }
+        }
+    }
+    let headers = headers.iter()
+        .map(|&h| format!("{:^12}", h)).collect::<Vec<_>>();
+    println!("{}", headers.join(" "));
+    let partial = stats.iter()
+        .fold(vec![0; headers.len()], |acc, (k, v)| {
+            acc.into_iter().zip(k.0.iter())
+                .map(|(a, r)| a + (*r as usize) * (*v))
+                .collect::<Vec<_>>()
+        })
+        .into_iter()
+        .map(|e| e as f32 / count as f32 * 100.0)
+        .map(|e| format!("{:^12}", e))
+        .collect::<Vec<_>>();
+    println!("{}", partial.join(" "));
+    for (k, v) in stats {
+        let row = k.0.into_iter()
+            .map(|e| format!("{:^12}", e))
+            .collect::<Vec<_>>();
+        println!("{}: {}", row.join(" "), v as f32 / count as f32 * 100.0);
+    }
+    Ok(())
 }

@@ -7,15 +7,16 @@ use crate::*;
 
 #[derive(Debug, EnumIter)]
 pub enum MessageType {
-    HEL,
     // Hello Message
-    ASK,
+    HEL,
     // Acknowledge Message
-    ERP,
+    ASK,
     // Error Message
-    RHE,
+    ERP,
     // ReverseHello Message
-    MSG,  // ??? Message
+    RHE,
+    // ??? Message
+    MSG,
 }
 
 impl TryFrom<&[u8]> for MessageType {
@@ -49,7 +50,6 @@ impl OpcUa {
         let kind = MessageType::try_from(data).ok()?;
         let chunk_type = *data.get(3)? as char;
         let message_size = LittleEndian::read_u32(data.get(4..8)?);
-        println!("{:X}", message_size);
         return Some(OpcUa {
             msg_type: kind,
             chunk_type,

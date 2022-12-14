@@ -131,10 +131,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let mut data = vec![];
+    const FILE: &str = "data_set_purified.csv";
+    // const FILE: &str = "data_set_generated.csv";
+    rust_pcap::print_stats(
+        FILE, 6..10,
+        &["over_count", "over_size", "over_addr", "has_unr"]
+    )?;
     let mut rdr = ReaderBuilder::new()
         .delimiter(b',')
-        // .from_path("data_set_purified.csv")?;
-        .from_path("data_set_generated.csv")?;
+        .from_path(FILE)?;
     for record in rdr.records() {
         let record = record?;
         let record = record.into_iter()

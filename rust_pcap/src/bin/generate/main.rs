@@ -79,26 +79,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     wrt.flush()?;
     println!("{}", I);
 
-    let parts = rows.iter()
-        .fold((0.0, 0.0, 0.0, 0.0), |acc, row| {
-            (
-                acc.0 + row.0.0.mul(*row.1 as f32),
-                acc.1 + row.0.1.mul(*row.1 as f32),
-                acc.2 + row.0.2.mul(*row.1 as f32),
-                acc.3 + row.0.3.mul(*row.1 as f32),
-            )
-        });
-    println!("{:^12} {:^12} {:^12} {:^12}", "over_count", "over_size", "over_addr", "has_unr");
-    println!("{:^12} {:^12} {:^12} {:^12}",
-             p(parts.0), p(parts.1), p(parts.2), p(parts.3));
-    for (row, count) in rows {
-        println!("{:^12} {:^12} {:^12} {:^12}: {}",
-                 row.0, row.1, row.2, row.3, p(count as f32));
-    }
+    rust_pcap::print_stats(
+        "data_set_generated.csv",
+        6..10,
+        &["over_count", "over_size", "over_addr", "has_unr"]
+    )?;
     Ok(())
-}
-
-fn p(n: f32) -> f32 {
-    const IF32: f32 = I as f32;
-    (n / IF32) * 100.0
 }
