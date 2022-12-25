@@ -245,11 +245,23 @@ pub fn print_stats<P: AsRef<Path>>(
         .map(|e| format!("{:^12}", e))
         .collect::<Vec<_>>();
     println!("{}", partial.join(" "));
-    for (k, v) in stats {
-        let row = k.0.into_iter()
-            .map(|e| format!("{:^12}", e))
-            .collect::<Vec<_>>();
-        println!("{}: {}", row.join(" "), v as f32 / count as f32 * 100.0);
-    }
+    let stats = stats.into_iter()
+        .map(|(k, v)| {
+            let v = (v as f32 / count as f32) * 100.0;
+            let row = k.0.iter()
+                .map(|e| format!("{:^12}", e))
+                .collect::<Vec<_>>();
+            println!("{}: {}", row.join(" "), v);
+            (k, v)
+        })
+        .collect::<HashMap<Row, f32>>();
+    let stats = stats.values().map(|&v| v).collect::<Vec<_>>();
+    println!("Row kinds: {} (Target: {})", stats.len(), headers.len().pow(2));
+    let avg = stats.iter().sum::<f32>() / stats.len() as f32;
+    println!("AVG: {} (Target: {})", avg, 100.0 / stats.len() as f32);
+    let avg_delta = stats.iter()
+        .map(|&s| (s - avg).abs())
+        .sum::<f32>() / stats.len() as f32;
+    println!("AVG DELTA: {} (Target: {})", avg_delta, 0.1);
     Ok(())
 }

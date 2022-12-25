@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         let count = rng.gen_range(1.0..(COUNT * 2.0));
         let size = rng.gen_range(1.0..(SIZE * 2.0));
-        let addresses = rng.gen_range(2.0..(ADDRESSES * 1.5));
+        let addresses = rng.gen_range(2.0..(ADDRESSES * 1.8));
         let hlf = count / 2.0;
         let (req, res, unr) = if rng.gen_bool(1.0 / 2.0) {
             (hlf, hlf, 0.0)
