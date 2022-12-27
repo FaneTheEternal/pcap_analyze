@@ -1,26 +1,16 @@
 use std::error::Error;
-use std::fs::File;
-use std::io::{ErrorKind, Read};
+use std::io::ErrorKind;
+use std::ops::Add;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+
 use ::csv::ReaderBuilder;
 
 use rand::prelude::*;
-use rayon::prelude::*;
-use tensorflow::train::AdadeltaOptimizer;
-use tracing::error;
 
-use rust_pcap::counter::Count;
-use rust_pcap::tf::NeuralNetwork;
+use rust_pcap::default;
+use rust_pcap::tf::{TFBuilder, TrainConfig};
 
-use crate::combo::WORD;
-use crate::nn::{GenericNeuralNetwork};
-use crate::profile::*;
-
-mod nn;
-mod profile;
 mod csv;
-mod combo;
 
 const PERIOD: f64 = 2.0;
 
@@ -59,9 +49,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut data = vec![];
     // const FILE: &str = "data_set_purified.csv";
     const FILE: &str = "data_set_generated.csv";
-    rust_pcap::print_stats(
+    const HEADERS: &[&str] = &["over_count", "over_size", "over_addr", "has_unr"];
+    rust_pcap::print_csv_stats(
         FILE, 6..10,
-        &["over_count", "over_size", "over_addr", "has_unr"]
+        HEADERS,
     )?;
     let mut rdr = ReaderBuilder::new()
         .delimiter(b',')
@@ -79,16 +70,59 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = thread_rng();
     data.shuffle(&mut rng);
 
-    let mut nn = NeuralNetwork::new(
-        [12, 12],
-        1000,
-        25,
-    );
+    let mut nn = TFBuilder::new(6, 4)?
+        .with_hidden([12])
+        .build()?;
 
-    let split = (data.len() as f32 * 1.0) as usize;
+    let train_cfg = TrainConfig {
+        epoch: 1000,
+        capture_period: 12,
+    };
+
+    let split = (data.len() as f32 * 0.9) as usize;
     let train = data.get(..split).unwrap();
-    q_del(nn.model_path())?;
-    nn.train(train)?;
+    let errors = nn.train(&train_cfg, train)?;
+    if let Some(errors) = errors.last() {
+        let avg_error = errors.iter()
+            .fold(0.0, |acc, i| acc.add(i)) / errors.len() as f32;
+        let avg_error = avg_error.sqrt();
+        println!("Train accuracies: {}", 1.0 - avg_error);
+    }
+    q_del(nn.name())?;
+    nn.save(nn.name())?;
 
+    let test = data.get(split..).unwrap();
+    println!("Test data: {}", test.len());
+    let mut test_errors = vec![];
+    let mut test_stats = vec![];
+    let mut printed_headers = false;
+    let mut print_headers = move || {
+        if !printed_headers {
+            printed_headers = true;
+            println!("count size addresses req res unr");
+        }
+    };
+    for (row, target) in test {
+        // let result = nn.eval(row)?;
+        let result = nn.restored_eval(row)?;
+        let error = target.into_iter().zip(&result)
+            .map(|(&t, &r)| (t - r).abs())
+            .collect::<Vec<_>>();
+
+        let stat_flag = error.iter()
+            .map(|&v| if v >= 0.5 { 1.0 } else { 0.0 })
+            .collect::<Vec<_>>();
+        test_stats.push(stat_flag);
+
+        let error = error.iter().sum::<f32>() / result.len() as f32;
+        if error >= 0.5 {
+            print_headers();
+            println!("{:?}", row);
+        }
+        test_errors.push(error);
+    }
+    let avg_test_error = test_errors.iter().sum::<f32>() / test_errors.len() as f32;
+    println!("Test accuracies: {}", 1.0 - avg_test_error);
+    rust_pcap::print_stats(test_stats, HEADERS);
     Ok(())
 }

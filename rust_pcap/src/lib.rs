@@ -1,14 +1,14 @@
 #![allow(dead_code)]
 
-use std::collections::hash_map::Entry;
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Formatter;
-use std::hash::{Hash, Hasher};
-use std::ops::{AddAssign, Range, RangeFrom, RangeFull, RangeTo};
+use std::ops::{Range, RangeFrom, RangeTo};
 use std::path::Path;
 use std::ptr::NonNull;
 use std::slice::SliceIndex;
+
 use csv::ReaderBuilder;
 
 pub use analyze_derive::*;
@@ -27,6 +27,7 @@ mod frame;
 mod iter;
 pub mod counter;
 pub mod tf;
+mod combo;
 
 pub fn split(data: &[u8], i: usize) -> (&[u8], &[u8]) {
     (data.get(..i).unwrap(), data.get(i..).unwrap())
@@ -190,78 +191,84 @@ impl<Idx> From<RangeTo<Idx>> for MyRange<Idx> {
 }
 
 
-pub fn print_stats<P: AsRef<Path>>(
-    path: P, range: Range<usize>, headers: &[&str],
-) -> Result<(), Box<dyn Error>>
+pub fn print_stats<I, II>(data: II, headers: &[&str])
+    where
+        I: IntoIterator<Item=f32>,
+        II: IntoIterator<Item=I>,
 {
-    assert_eq!(range.end - range.start, headers.len());
-
-    #[derive(PartialEq, Debug)]
-    struct Row(Vec<f32>);
-    impl Hash for Row {
-        fn hash<H: Hasher>(&self, state: &mut H) {
-            format!("{:?}", self.0).hash(state)
-        }
-    }
-    impl From<Vec<f32>> for Row {
-        fn from(v: Vec<f32>) -> Self {
-            Row(v)
-        }
-    }
-    impl Eq for Row {}
-
-    let mut rdr = ReaderBuilder::new()
-        .delimiter(b',')
-        .from_path(path)?;
-    let mut stats = HashMap::<Row, usize>::new();
-    let mut count = 0usize;
-    for record in rdr.records() {
+    let mut stats = Vec::<(Vec<f32>, usize)>::new();
+    let mut count = 0;
+    let width = headers.len();
+    for row in data.into_iter() {
         count += 1;
-        let record = record?;
-        let record = record.into_iter()
-            .map(|r| r.parse::<f32>().unwrap())
-            .collect::<Vec<_>>();
-        let record = record.get(range.clone()).unwrap().to_vec();
-        match stats.entry(record.into()) {
-            Entry::Occupied(mut oc) => {
-                oc.get_mut().add_assign(1);
-            }
-            Entry::Vacant(vac) => {
-                vac.insert(1);
-            }
-        }
+        let row = row.into_iter().collect::<Vec<_>>();
+        let pos = stats.iter()
+            .position(|(r, _)| {
+                r.iter().zip(row.iter())
+                    .fold(true, |acc, (&l, &r)| acc && l == r)
+            });
+        let stat = if let Some(idx) = pos {
+            let mut stat = stats.remove(idx);
+            stat.1 += 1;
+            stat
+        } else {
+            (row, 1)
+        };
+        stats.push(stat);
     }
+    stats.sort_by_key(|i| format!("{:?}", i.1));
     let headers = headers.iter()
         .map(|&h| format!("{:^12}", h)).collect::<Vec<_>>();
     println!("{}", headers.join(" "));
+
     let partial = stats.iter()
-        .fold(vec![0; headers.len()], |acc, (k, v)| {
-            acc.into_iter().zip(k.0.iter())
-                .map(|(a, r)| a + (*r as usize) * (*v))
+        .fold(vec![0_f32; width], |acc, (row, cnt)| {
+            acc.into_iter().zip(row)
+                .map(|(a, &v)| a + v * (*cnt as f32))
                 .collect::<Vec<_>>()
         })
         .into_iter()
-        .map(|e| e as f32 / count as f32 * 100.0)
-        .map(|e| format!("{:^12}", e))
+        .map(|stat| format!("{:^12}", stat / count as f32 * 100.0))
         .collect::<Vec<_>>();
     println!("{}", partial.join(" "));
     let stats = stats.into_iter()
         .map(|(k, v)| {
             let v = (v as f32 / count as f32) * 100.0;
-            let row = k.0.iter()
+            let row = k.iter()
                 .map(|e| format!("{:^12}", e))
                 .collect::<Vec<_>>();
             println!("{}: {}", row.join(" "), v);
             (k, v)
         })
-        .collect::<HashMap<Row, f32>>();
-    let stats = stats.values().map(|&v| v).collect::<Vec<_>>();
-    println!("Row kinds: {} (Target: {})", stats.len(), headers.len().pow(2));
+        .collect::<Vec<(Vec<f32>, f32)>>();
+    let stats = stats.iter().map(|v| v.1).collect::<Vec<_>>();
+    println!("Row kinds: {}", stats.len());
     let avg = stats.iter().sum::<f32>() / stats.len() as f32;
-    println!("AVG: {} (Target: {})", avg, 100.0 / stats.len() as f32);
+    println!("AVG: {}", avg);
     let avg_delta = stats.iter()
         .map(|&s| (s - avg).abs())
         .sum::<f32>() / stats.len() as f32;
-    println!("AVG DELTA: {} (Target: {})", avg_delta, 0.1);
+    println!("AVG DELTA: {}", avg_delta);
+}
+
+
+pub fn print_csv_stats<P: AsRef<Path>>(
+    path: P, range: Range<usize>, headers: &[&str],
+) -> Result<(), Box<dyn Error>>
+{
+    assert_eq!(range.end - range.start, headers.len());
+
+    let mut rdr = ReaderBuilder::new()
+        .delimiter(b',')
+        .from_path(path)?;
+    let mut records = vec![];
+    for record in rdr.records() {
+        let record = record?;
+        let record = record.into_iter()
+            .map(|r| r.parse::<f32>().unwrap())
+            .collect::<Vec<_>>();
+        records.push(record[range.clone()].to_vec())
+    }
+    print_stats(records, headers);
     Ok(())
 }
