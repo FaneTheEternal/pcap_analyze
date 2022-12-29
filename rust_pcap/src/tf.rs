@@ -66,7 +66,7 @@ impl TFBuilder {
         let mut scope = Scope::new_root_scope();
         let mut optimizer = AdadeltaOptimizer::new();
         // 0.001_f32
-        optimizer.set_learning_rate(ops::constant(0.05_f32, &mut scope)?);
+        optimizer.set_learning_rate(ops::constant(0.1_f32, &mut scope)?);
         // 0.95_f32
         optimizer.set_rho(ops::constant(0.95_f32, &mut scope)?);
         // 1e-8_f32

@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
-use std::ops::{AddAssign, Mul};
+use std::ops::{AddAssign, Range};
 use rand::{Rng, thread_rng};
 
 const COUNT: f32 = 77.0;
@@ -25,6 +25,10 @@ impl Hash for Row {
 
 impl Eq for Row {}
 
+fn gen_fixed_range(rng: &mut impl Rng, range: Range<f32>) -> f32
+{
+    rng.gen_range(range) as usize as f32
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = thread_rng();
@@ -38,16 +42,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         if i % STEP == 0 {
             print!("{}...", i);
         }
-        let count = rng.gen_range(1.0..(COUNT * 2.0));
+        let count = gen_fixed_range(&mut rng, 1.0..(COUNT * 1.99));
         let size = rng.gen_range(1.0..(SIZE * 2.0));
-        let addresses = rng.gen_range(2.0..(ADDRESSES * 1.7));
+        let addresses = gen_fixed_range(&mut rng, 2.0..(ADDRESSES * 1.99));
         let hlf = count / 2.0;
-        let (req, res, unr) = if rng.gen_bool(1.0 / 2.0) {
+        let (req, res, unr) = if rng.gen_bool(1.0 / 2.1) {
             (hlf, hlf, 0.0)
         } else {
-            let req = rng.gen_range(hlf..=count);
+            let req = gen_fixed_range(&mut rng, hlf..count);
             let res = count - req;
-            (req, res, req - res)
+            (req, res, (req - res).max(0.0))
         };
         let over_count = if count > COUNT { 1.0 } else { 0.0 };
         let over_size = if size > SIZE { 1.0 } else { 0.0 };
@@ -82,7 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     rust_pcap::print_csv_stats(
         "data_set_generated.csv",
         6..10,
-        &["over_count", "over_size", "over_addr", "has_unr"]
+        &["over_count", "over_size", "over_addr", "has_unr"],
     )?;
     Ok(())
 }

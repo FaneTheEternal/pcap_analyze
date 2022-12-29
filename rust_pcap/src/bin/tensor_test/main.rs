@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let train_cfg = TrainConfig {
         epoch: 1000,
-        capture_period: 12,
+        capture_period: 25,
     };
 
     let split = (data.len() as f32 * 0.9) as usize;
@@ -99,14 +99,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut print_headers = move || {
         if !printed_headers {
             printed_headers = true;
-            println!("count size addresses req res unr");
+            println!(
+                "{}",
+                [
+                    "count", "size", "addresses", "req", "res", "unr",
+                    "over_count", "over_size", "over_addr", "has_unr"
+                ].into_iter().map(|e| format!("{:^12}", e))
+                    .collect::<Vec<_>>().join("|"),
+            );
         }
     };
     for (row, target) in test {
         // let result = nn.eval(row)?;
         let result = nn.restored_eval(row)?;
+        let result = result.into_iter()
+            .map(|r| if r < 0.0 { 0.0 } else if r > 1.0 { 1.0 } else { r })
+            .collect::<Vec<_>>();
         let error = target.into_iter().zip(&result)
-            .map(|(&t, &r)| (t - r).abs())
+            .map(|(&t, &r)| {
+                (t - r).abs()
+            })
             .collect::<Vec<_>>();
 
         let stat_flag = error.iter()
@@ -117,7 +129,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         let error = error.iter().sum::<f32>() / result.len() as f32;
         if error >= 0.5 {
             print_headers();
-            println!("{:?}", row);
+            println!(
+                "{}|{}",
+                row.iter().map(|e| format!("{:^12}", e))
+                    .collect::<Vec<_>>().join("|"),
+                result.iter().zip(target)
+                    .map(|(r, t)| format!("{:^12}", format!("{:.3}({})", r, t)))
+                    .collect::<Vec<_>>().join("|")
+            );
         }
         test_errors.push(error);
     }
