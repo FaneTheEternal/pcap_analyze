@@ -4,6 +4,7 @@ use byteorder::{ByteOrder, NetworkEndian};
 
 use crate::*;
 use crate::goose::GOOSE;
+use crate::sv::SampledValue;
 
 #[derive(Layer)]
 pub struct Ethernet {
@@ -51,6 +52,7 @@ impl Ethernet {
     const MPLS_MULTICAST: u16 = 0x8848;
     // TODO: Many others from https://en.wikipedia.org/wiki/EtherType
     const GOOSE: u16 = 0x88B8;
+    const SV: u16 = 0x88BA;
 
     pub fn new(data: MultipartSlice, ctx: &mut DissectionContext) -> Ethernet {
         let mut layers = Layers::default();
@@ -96,6 +98,9 @@ impl Ethernet {
             Self::MPLS_MULTICAST => { if WARN_ETHER_TYPE { println!("MPLS_MULTICAST not implemented") } }
             Self::GOOSE => {
                 layers.insert(GOOSE::new(data.get(14..).unwrap()));
+            }
+            Self::SV => {
+                layers.insert(SampledValue::new(data.get(14..).unwrap()))
             }
             _ => { if WARN_ETHER_TYPE { println!("unknown eth_type: {:#04x}", eth_type) } }
         }
