@@ -330,18 +330,23 @@ impl TFNeuralNetwork {
         Ok(fetched.to_vec())
     }
 
+    pub fn restore(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("RESTORE...");
+        let mut graph = Graph::new();
+        let bundle = SavedModelBundle::load(
+            &SessionOptions::new(),
+            &["serve", "train"],
+            &mut graph,
+            self.name(),
+        )?;
+        let restored = RestoredModel { graph, bundle };
+        self.restored.replace(restored);
+        Ok(())
+    }
+
     pub fn restored_eval(&mut self, data: &[f32]) -> Result<Vec<f32>, Box<dyn Error>> {
         if self.restored.is_none() {
-            info!("RESTORE...");
-            let mut graph = Graph::new();
-            let bundle = SavedModelBundle::load(
-                &SessionOptions::new(),
-                &["serve", "train"],
-                &mut graph,
-                self.name(),
-            )?;
-            let restored = RestoredModel { graph, bundle };
-            self.restored.replace(restored);
+            self.restore()?;
         }
         let restored = self.restored.as_ref().unwrap();
         let graph = &restored.graph;

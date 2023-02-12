@@ -202,7 +202,7 @@ impl Count {
         }
         // println!("COUNTS EXPECT TOTAL PERIOD {}", _last.unwrap() - _first.unwrap());
         // println!("COUNTS COMPUTE TOTAL PERIOD {}", counts.len() * period as usize);
-        println!("COUNTS APPLY {} FRAMES", counter);
+        // println!("COUNTS APPLY {} FRAMES", counter);
         counts
     }
 

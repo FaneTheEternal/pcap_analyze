@@ -6,7 +6,6 @@ use tracing::info;
 
 use rust_pcap::{Codec, default, PcapIterator};
 use rust_pcap::counter::Count;
-use rust_pcap::tf::{NeuralNetwork, NNContext};
 
 const RNG: bool = true;
 
