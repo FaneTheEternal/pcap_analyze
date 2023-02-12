@@ -16,6 +16,7 @@ pub mod udp;
 pub mod goose;
 pub mod opc_ua;
 pub mod sv;
+pub mod tpkt;
 
 
 #[derive(Default, Debug)]

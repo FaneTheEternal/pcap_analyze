@@ -3,6 +3,7 @@ use derivative::Derivative;
 
 use crate::*;
 use crate::opc_ua::OpcUa;
+use crate::tpkt::TPKT;
 
 #[derive(Debug)]
 pub struct TCPFlags {
@@ -82,9 +83,10 @@ impl TCP {
         sequence.data.extend(&tcp.data);
         if let Some(http) = HTTP::try_make(&mut sequence, &tcp) {
             tcp.layers.insert(http);
-        }
-        if let Some(opc_ua) = OpcUa::try_make(&tcp) {
+        } else if let Some(opc_ua) = OpcUa::try_make(&tcp) {
             tcp.layers.insert(opc_ua);
+        } else if let Some(tpkt) = TPKT::try_make(&sequence) {
+            tcp.layers.insert(tpkt);
         }
         if tcp.is_tail_of_sequence() {
             if let Some(seq) = ctx.remove(&key) {
